@@ -101,6 +101,7 @@ def cod_afin_number(x,a,b,n):
 
 def cod_afin(mensaje,a,b,n):
 	assert gcdex(a,n)[2] == 1, 'Las claves a y n deben ser primos relativos'
+
 	number_list = []
 	decdoded_list = str_to_declist(mensaje)
 	for number in decdoded_list:
@@ -112,7 +113,7 @@ def cod_afin(mensaje,a,b,n):
 # print coded_list
 
 def deco_afin_number(number, a, b, n):
-	return gcdex(a,n)[0] * (number - b) % n
+	return (gcdex(a,n)[0] * (number - b)) % n
 
 def deco_afin(lista,a,b,n):
 	assert gcdex(a,n)[2] == 1, 'Las claves a y n deben ser primos relativos'
@@ -122,8 +123,7 @@ def deco_afin(lista,a,b,n):
 		decoded_number = deco_afin_number(number,a,b,n)
 		decoded_list.append(dectohex_rec(decoded_number))
 
-	decoded_string = hexalist_to_str(decoded_list)
-	return decoded_string
+	return hexalist_to_str(decoded_list)
 
 # deco_afin(coded_list,4892055594575155744537,1231241,465675465116607065549*44211790234832169331)
 
@@ -178,10 +178,12 @@ n = 553612260071847767819357303824754235825777
 
 counting = dict((i,mensaje_cifrado.count(i)) for i in mensaje_cifrado)
 coded_kilos = max(counting, key=counting.get)
-decoded_kilos = hextodec_rec('kilos'.encode('hex'))
+decoded_kilos = hextodec_rec("kilos".encode('hex'))
 
 coded_email = 268352937076140713164752723958686406250826
-decoded_email = hextodec_rec('jacinto@gmail.com'.encode('hex'))
+decoded_email = hextodec_rec("jacinto@gmail.com".encode('hex'))
 
-a = deco_afin_number(decoded_kilos - decoded_email, coded_kilos - coded_email, 0, n)
+a = deco_afin_number(coded_kilos - coded_email, decoded_kilos - decoded_email, 0, n)
 b = (coded_kilos - a * decoded_kilos) % n
+
+print deco_afin(mensaje_cifrado,a,b,n)

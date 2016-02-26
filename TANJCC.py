@@ -109,15 +109,11 @@ def cod_afin(mensaje,a,b,n):
 
 	return number_list
 
-# coded_list = cod_afin('Hola, ¿qué tal?',4892055594575155744537,1231241,465675465116607065549*44211790234832169331)
-# print coded_list
-
 def deco_afin_number(number, a, b, n):
 	return (gcdex(a,n)[0] * (number - b)) % n
 
 def deco_afin(lista,a,b,n):
 	assert gcdex(a,n)[2] == 1, 'Las claves a y n deben ser primos relativos'
-
 	decoded_list = []
 	for number in lista:
 		decoded_number = deco_afin_number(number,a,b,n)
@@ -125,65 +121,11 @@ def deco_afin(lista,a,b,n):
 
 	return hexalist_to_str(decoded_list)
 
-# deco_afin(coded_list,4892055594575155744537,1231241,465675465116607065549*44211790234832169331)
-
-mensaje_cifrado = [734461933241186429117476L,
- 3435209764L,
- 279048452422856320008528932L,
- 1033071336087238299690020L,
- 974633772068L,
- 57111833174811684L,
- 15623803945172673572L,
- 39003172L,
- 60467473942520868L,
- 3668513721263858590756L,
- 3400737828L,
- 17334517580104451101254330950692L,
- 38741028L,
- 60467473942520868L,
- 3779622034147486278692L,
- 39265316L,
- 60467473942520868L,
- 264466043694263907773391908L,
- 39527460L,
- 60467473942520868L,
- 1011702180066720474247122611544859684L,
- 422555755556L,
- 60467473942520868L,
- 3596316486929846969380L,
- 43721764L,
- 150370742641700L,
- 63301989280982052L,
- 974633772068L,
- 3702727716L,
- 16776694611586262052L,
- 58761092191167524L,
- 931014845476L,
- 4072327277505430889508L,
- 854174540836L,
- 65516448682550308L,
- 279010673496068621976282148L,
- 974633772068L,
- 16195758769579435044L,
- 974633772068L,
- 240419345292453720492024868L,
- 245091883754532L,
- 218660688569380L,
- 3435471908L,
- 61056768755442724L,
- 3534955556L,
- 58760954251125796L,
- 75164731049239781261359916068L]
-n = 553612260071847767819357303824754235825777
-
-counting = dict((i,mensaje_cifrado.count(i)) for i in mensaje_cifrado)
-coded_kilos = max(counting, key=counting.get)
-decoded_kilos = hextodec_rec("kilos".encode('hex'))
-
-coded_email = 268352937076140713164752723958686406250826
-decoded_email = hextodec_rec("jacinto@gmail.com".encode('hex'))
-
-a = deco_afin_number(coded_kilos - coded_email, decoded_kilos - decoded_email, 0, n)
-b = (coded_kilos - a * decoded_kilos) % n
-
-print deco_afin(mensaje_cifrado,a,b,n)
+def solve_congr(a,b,n):
+	if(gcdex(a,n)[2] == 1):
+		return (gcdex(a,n)[0] * b) % n
+	else:
+		a_prime = a / gcdex(a,n)[2]
+		b_prime = b / gcdex(a,n)[2]
+		n_prime = n / gcdex(a,n)[2]
+		return (gcdex(a_prime,n_prime)[0] * b_prime ) % n_prime

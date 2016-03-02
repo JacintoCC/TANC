@@ -129,3 +129,22 @@ def solve_congr(a,b,n):
 		b_prime = b / gcdex(a,n)[2]
 		n_prime = n / gcdex(a,n)[2]
 		return (gcdex(a_prime,n_prime)[0] * b_prime ) % n_prime
+
+def decode_vigenere(board, coded_string, key):
+	decoded_string = ''
+	first_col = [row[0] for row in board]
+	for letter in range(len(coded_string)):
+		row = first_col.index(key[letter%(len(key))])
+		decoded_string += board[0][board[row].index(coded_string[letter])]
+
+	print decoded_string
+
+def deco_rsa(lista,e,p,q):
+	u = gcdex(e,(p-1)*(q-1))[0] % ((p-1)*(q-1))
+	decoded_list = []
+	n = p*q
+	for number in lista:
+		decoded_number = pow(number,int(u),n)
+		decoded_list.append(dectohex_rec(decoded_number))
+
+	return hexalist_to_str(decoded_list)

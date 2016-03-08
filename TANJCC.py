@@ -11,6 +11,7 @@ import os, sys
 from sympy import Symbol
 from sympy import gcdex
 from random import randint
+from sympy.ntheory import jacobi_symbol
 
 hexa_to_dec_dict = {str(x): x for x in range(0,10)}
 hexa_to_dec_dict.update({'a': 10, 'b':11, 'c':12, 'd':13, 'e':14, 'f':15})
@@ -140,6 +141,16 @@ def decode_vigenere(board, coded_string, key):
 
 	print decoded_string
 
+def code_vigenere(board, string, key):
+	coded_string = ''
+	first_col = [row[0] for row in board]
+	for letter in range(len(string)):
+		row = first_col.index(string, [letter%(len(key))])
+		col = board[0].index(string, [letter%(len(key))])
+		coded_string += board[row][col]
+
+	print coded_string
+
 def deco_rsa(lista,e,p,q):
 	u = gcdex(e,(p-1)*(q-1))[0] % ((p-1)*(q-1))
 	decoded_list = []
@@ -154,90 +165,96 @@ def psp(n):
 	b = randint(2, n-1)
 	d = gcdex(b, n)[2]
 	if( d != 1):
+		print "gcd(",b,",",n,")=", d , " es divisor de", n
 		return [b, False]
 	else:
 		v = pow(b, n-1, n)
 		return [b, v == 1]
 
-print( psp(561) )
-
-def psp_k(n, k):
+def pspk(n, k):
 	i = 1
 	psp_n = psp(n)
-	not_prime = psp_n[1]
-	while( i in range(1,k) and not_prime):
+	posible_prime = psp_n[1]
+	list_b = []
+	while( i in range(1,k) and posible_prime):
 		psp_n = psp(n)
-		not_prime = psp_n[1]
+		posible_prime = psp_n[1]
 		i = i+1
+		list_b.append(psp_n[0])
 
+	if(posible_prime):
+		print "Es posible que ", n, " sea primo"
+		psp_n[0] = list_b
 	return psp_n
-
-print( psp_k(561,10) )
-
-def legendre_symbol(d, p):
-	if( d % p == 0 ):
-		return 0
-	else:
-		if( d > p ):
-			return legendre_symbol(d%p, p)
-		else
-			return (-1)^((p-1)*(q-1)/4)*legendre_symbol(p%d, d)
 
 def epsp(n):
 	if( n%2 == 0):
+		print n, " es par"
 		return [2, False]
 	else:
 		b = randint(3, n-1)
 		d = gcdex(b, n)[2]
 		if( d != 1):
+			print "gcd(",b,",",n,")=", d , " es divisor de", n
 			return [b, False]
 		else:
-			return [b, pow(b, (n-1)/2, n) == legendre_symbol(b,n)%n]
+			return [b, pow(b, (n-1)/2, n) == jacobi_symbol(b,n)%n]
 
-
-def epsp_k(n, k):
+def epspk(n, k):
 	i = 1
 	epsp_n = epsp(n)
-	not_prime = epsp_n[1]
-	while( i in range(1,k) and not_prime):
+	posible_prime = epsp_n[1]
+	list_b = []
+	while( i in range(1,k) and posible_prime):
 		epsp_n = epsp(n)
-		not_prime = epsp_n[1]
+		posible_prime = epsp_n[1]
 		i = i+1
+		list_b.append(epsp_n[0])
 
+	if( posible_prime ):
+		print "Es posible que ", n, " sea primo"
+		epsp_n[0] = list_b
 	return epsp_n
 
-def fact_k(n, k):
+def mpot(p,m):
 	s = 0
-	while( n%k == 0 ):
-		n = k/n
+	while( m%p == 0 ):
+		m = m/p
 		s = s + 1
 
-	return [n, s]
+	return [s, m]
 
 def fpsp(n):
 	if( n%2 == 0):
 		return [2, False]
 	else:
-		[s,t] = fact_k(n-1, 2)
+		[t,s] = mpot(n-1, 2)
 		b = randint(2, n-1)
 		d = gcdex(b, n)[2]
 		if( d != 1):
+			print "gcd(",b,",",n,")=", d , " es divisor de", n
 			return [b, False]
-		else if( pow(b,t,n) == 1 or pow(b,t,n)==-1):
+		elif( pow(b,t,n) == 1 or pow(b,t,n) == n-1):
 			return [b, True]
 		else:
-			for( i in range(1,s-1)):
-				if( pow(b^t,2^i,n) == -1):
-					return [b, True]
+			for i in range(1,s):
+				if( pow(b,t*2^i,n) == n-1):
+					return [b, True, i]
 			return [b, False]
 
-def fpsp_k(n, k):
+def fpspk(n, k):
 	i = 1
 	fpsp_n = fpsp(n)
-	not_prime = fpsp_n[1]
-	while( i in range(1,k) and not_prime):
+	posible_prime = fpsp_n[1]
+	list_b = []
+	while( i in range(1,k) and posible_prime):
 		fpsp_n = fpsp(n)
-		not_prime = fpsp_n[1]
+		posible_prime = fpsp_n[1]
 		i = i+1
+		list_b.append(fpsp_n[0])
 
-	return fpsp_n		
+	if( posible_prime ):
+		print "Es posible que ", n, " sea primo"
+		fpsp_n[0] = list_b
+
+	return fpsp_n

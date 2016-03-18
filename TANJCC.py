@@ -2,16 +2,20 @@
 # -*- coding: utf-8 -*-
 import os, sys
 
-
 """
 	Archivo con las funciones usadas en la asignatura
 	Teoría Algebráica de Números y Criptografía
 """
-
-from sympy import Symbol
-from sympy import gcdex
+"""
+	Funciones Práctica factor base a partir de la línea 268
+"""
+from sympy import *
 from random import randint
 from sympy.ntheory import jacobi_symbol
+from itertools import combinations
+from math import floor, sqrt
+
+# Prácticas iniciales
 
 hexa_to_dec_dict = {str(x): x for x in range(0,10)}
 hexa_to_dec_dict.update({'a': 10, 'b':11, 'c':12, 'd':13, 'e':14, 'f':15})
@@ -98,6 +102,8 @@ def str_to_declist(mensaje):
 
 	return declist
 
+# Práctica Codificación Afín
+
 def cod_afin_number(x,a,b,n):
 	return (a*x+b)%n
 
@@ -132,6 +138,8 @@ def solve_congr(a,b,n):
 		n_prime = n / gcdex(a,n)[2]
 		return (gcdex(a_prime,n_prime)[0] * b_prime ) % n_prime
 
+# Práctica RSA
+
 def decode_vigenere(board, coded_string, key):
 	decoded_string = ''
 	first_col = [row[0] for row in board]
@@ -160,6 +168,8 @@ def deco_rsa(lista,e,p,q):
 		decoded_list.append(dectohex_rec(decoded_number))
 
 	return hexalist_to_str(decoded_list)
+
+# Práctica Primaridad
 
 def psp(n):
 	b = randint(2, n-1)
@@ -258,3 +268,119 @@ def fpspk(n, k):
 		fpsp_n[0] = list_b
 
 	return fpsp_n
+
+"""
+		PRÁCTICA FACTOR BASE
+"""
+
+def abmod(x, n):
+	mod = x%n
+	if( mod <= n/2 ):
+		return mod
+	else:
+		return mod-n
+
+def mayorpot(x, p):
+	assert x != 0 and p!=0, "No se puede tratar el 0 en este método"
+	if( p == -1):
+		if( x < 0 ):
+			return 1
+		else:
+			return 0
+	else:
+		pot = 0
+		while( x%p == 0 ):
+			x = x/p
+			pot += 1
+
+		return pot
+
+def bnumer(b, base, n):
+	y = abmod(b**2, n)
+	exps = [mayorpot(y,p) for p in base]
+
+	x = 1
+	for i in range(len(base)):
+		x *= base[i]**exps[i]
+
+	return (x==y)
+
+def vec_alfa(b,base,n):
+	if( bnumer(b,base,n) ):
+		y = abmod(b**2, n)
+		exps = [mayorpot(y,p) for p in base]
+		return exps
+	else:
+		print str(b)+ " no es un B-número"
+
+def parp(lista):
+	son_par = True
+	for exp in lista:
+		son_par = son_par and (exp%2 == 0)
+
+	return son_par
+
+def ssuma(lista1, lista2):
+	assert len(lista1)==len(lista2), "Los vectores no tienen la misma longitud"
+	return [lista1[i]+lista2[i] for i in range(len(lista1))]
+
+def suma_listas(lists):
+	vector_sum = [0] * len(lists[0])
+	for l in lists:
+		vector_sum = ssuma(vector_sum,l)
+	return vector_sum
+
+def aux(k, r):
+	return list(combinations(range(k),r))
+
+def suma(lista, k):
+	return [suma_listas([lista[j] 	for j in comb])
+									for comb in aux(len(lista),k)]
+
+def bi(n, k, i, base):
+	l1 = [floor(sqrt(j*n)) for j in range(1,k+1)]
+	l2 = []
+	for n_k in l1:
+		for j in range(i):
+			l2.append(n_k + j)
+	BN = [int(i) for i in l2 if bnumer(int(i), base, n)]
+	return BN
+
+def getSumajPar(alfavec, j, blength):
+	while(j <= blength):
+		sumaj = suma(alfavec, j)
+		sumajpar = [i for i in sumaj if parp(i)]
+		if(len(sumajpar) > 0):
+			return[True,sumajpar,j,sumaj]
+		j += 1
+
+	return [False,[],blength,[]]
+
+def soleq(n, h, k, i):
+	base_factor = [-1]+[prime(i) for i in range(1,h+1)]
+	BN = bi(n, k, i, base_factor)
+	alfavec = [vec_alfa(b,base_factor,n) for b in BN]
+
+	found = False
+	j = 1
+	while j <= h+1 and not found:
+		sjp = getSumajPar(alfavec, j, h+1)
+		if sjp[0]:
+			possible_alphas = sjp[1]
+			j = sjp[2]
+			suma_j = sjp[3]
+			for alpha in possible_alphas:
+				eles_alpha = aux(len(BN),j)[suma_j.index(alpha)]
+				t_factors = [BN[i] for i in eles_alpha]
+				s_factors = [base_factor[i]**(alpha[i]/2)
+					for i in range(len(base_factor))]
+				t = prod(t_factors)
+				s = prod(s_factors)
+				if( t != s and t != -s):
+					print( str(t) + " y " + str(s) +
+						" es una solución no trivial de la ecuación")
+					d_1 = gcd(n,t-s)
+					return([n/d_1, d_1])
+			j += 1
+		else:
+			print("Todas las soluciones son triviales")

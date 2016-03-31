@@ -257,7 +257,7 @@ def fpsp(n):
 			return [b, True]
 		else:
 			for i in range(1,s):
-				if( pow(b,t*2^i,n) == n-1):
+				if( pow(b,t*2**i,n) == n-1):
 					return [b, True, i]
 			return [b, False]
 
@@ -289,161 +289,236 @@ def abmod(x, n):
 	else:
 		return mod-n
 
+# Función para obtener la mayor potencia de p en x
 def mayorpot(x, p):
 	assert x != 0 and p!=0, "No se puede tratar el 0 en este método"
+	pot = 0
 	if( p == -1):
-		if( x < 0 ):
-			return 1
-		else:
-			return 0
+		pot = 0 if x > 0 else 1
 	else:
+		aux = x
 		pot = 0
-		while( x%p == 0 ):
-			x = x/p
+		while( aux%p == 0 ):
+			aux = aux/p
 			pot += 1
 
-		return pot
+	return pot
 
+# Función para determinar si b es bnúmero en una base para un n
 def bnumer(b, base, n):
 	x = 1
 	y = abmod(b**2, n)
 
 	if( y!= 0):
 		exps = [mayorpot(y,p) for p in base]
-		for i in range(len(base)):
-			x *= base[i]**exps[i]
+		x = prod([base[i]**exps[i] for i in range(len(base))])
 
 	return (x==y)
 
+# Función para tomar el vector de exponentes en b**2 de números de una base
+#  No le he puesto la condición porque sólo se llamará cuando b sea un bnúmero
 def vec_alfa(b,base,n):
-	if( bnumer(b,base,n) ):
-		y = abmod(b**2, n)
-		exps = [mayorpot(y,p) for p in base]
-		return exps
-	else:
-		print str(b)+ " no es un B-número"
+	y = abmod(b**2, n)
+	exps = [mayorpot(y,p) for p in base]
+	return exps
 
+# Función para determinar si todos los elementos de lista son pares
 def parp(lista):
-	son_par = True
-	for exp in lista:
-		son_par = son_par and (exp%2 == 0)
+	return all([i%2 == 0 for i in lista])
 
-	return son_par
-
+# Función para sumar dos listas
 def ssuma(lista1, lista2):
 	assert len(lista1)==len(lista2), "Los vectores no tienen la misma longitud"
 	return [lista1[i]+lista2[i] for i in range(len(lista1))]
 
+# Función para sumar una lista de listas de números
 def suma_listas(lists):
 	vector_sum = [0] * len(lists[0])
 	for l in lists:
 		vector_sum = ssuma(vector_sum,l)
 	return vector_sum
 
+# Función para obtener una lista de r combinaciones de números en el rango [0,k[
 def aux(k, r):
 	return list(combinations(range(k),r))
 
+# Función para obtener las posibles sumas de k listas en lista
 def suma(lista, k):
 	return [suma_listas([lista[j] 	for j in comb])
 									for comb in aux(len(lista),k)]
 
+# Función para obtener una lista de Bnúmeros de n para descomponerlo
 def bi(n, k_max, i_max, base):
 	l1 = [floor(sqrt(j*n)) for j in range(1,k_max+1)]
-	l2 = [n_k + j for j in range(i_max) for n_k in l1]
-	BN = list(set([int(i) for i in l2 if bnumer(i, base, n)]))
+	l2 = list(set([n_k + j for j in range(i_max) for n_k in l1]))
+	BN = [int(i) for i in l2 if bnumer(i, base, n)]
 	return BN
 
-def getSumajPar(alfavec, j, blength):
-	while(j <= blength):
-		sumaj = suma(alfavec, j)
-		sumajpar = [i for i in sumaj if parp(i)]
-		if(len(sumajpar) > 0):
-			return[True,sumajpar,j,sumaj]
-		j += 1
-
-	return [False,[],blength,[]]
-
+# Función para obtener una solución ecuación cuadrática no trivial
 def soleq(n, h, k_max, i_max):
+	# Formamos la base de factores primos de longitud h+1
 	base_factor = [-1]+[prime(i) for i in range(1,h+1)]
+
+	# Generamos el vector de bnúmeros de n y los vectores asociados
 	BN = bi(n, k_max, i_max, base_factor)
 	alfavec = [vec_alfa(b,base_factor,n) for b in BN]
-	found = False
-	j = 1
-	while j <= h+1 and not found:
-		sjp = getSumajPar(alfavec, j, h+1)
-		if sjp[0]:
-			possible_alphas = sjp[1]
-			j = sjp[2]
-			suma_j = sjp[3]
-			print len(possible_alphas)
-			for alpha in possible_alphas:
-				eles_alpha = aux(len(BN),j)[suma_j.index(alpha)]
-				t_factors = [BN[i] for i in eles_alpha]
-				s_factors = [base_factor[i]**(alpha[i]/2) for i in range(h)]
-				t = prod(t_factors)
-				s = prod(s_factors)
-				if( (t%n) != (s%n) and (t%n) != (-s)%n):
-					print( str(t) + " y " + str(s) +
-						" es una solución no trivial de la ecuación")
-					d_1 = gcd(n,t-s)
-					return([n/d_1, d_1])
-			j += 1
-			print j
-		else:
-			print("Todas las soluciones son triviales")
-			return False
 
+	# Número de cadenas a combinar buscando una solución
+	j = 1
+
+	while j <= h+1:
+		# Obtenemos los vectores de longitud j cuyos coefs sean par
+		sumaj = suma(alfavec, j)
+		sumajpar = [i for i in sumaj if parp(i)]
+
+		for alpha in sumajpar:
+			# Tomamos los índices de los elementos que forman alpha
+			eles_alpha = aux(len(BN),j)[sumaj.index(alpha)]
+
+			# Obtenemos la solución a la ecuación cuadrática
+			t_factors = [BN[i] for i in eles_alpha]
+			s_factors = [base_factor[i]**(alpha[i]/2) for i in range(h)]
+			t = prod(t_factors)
+			s = prod(s_factors)
+
+			# Devolvemos la solución no trivial a la ecuación
+			if( (t%n) != (s%n) and (t%n) != (-s)%n):
+				print( str(t) + " y " + str(s) +
+					" es una solución no trivial de la ecuación")
+				return [t,s]
+
+		# Incrementamos el número de vectores a combinar
+		print("Todas las soluciones de long " + str(j)  + " son triviales")
+		j += 1
+
+	print("Todas las soluciones son triviales")
+	return False
+
+# Función para sumar los exponentes de los factores de dos diccionarios
 def sumDictionaries(dict_a,dict_b):
 	return { k: dict_a.get(k, 0) + dict_b.get(k, 0)
-       for k in set(dict_a) | set(dict_b) }
+       for k in set(dict_a) | set(dict_b) if k!=1 }
 
+# Función para factorizar n (intentarlo al menos)
 def fac(n, h, k_max, i_max):
-	factors_dict = {}
-	factorized = False
+	factors_dict = {n: 1}
 
-	while not factorized:
+	if ( n%2 == 0 ):
+		pow_2 = mayorpot(n,2)
+		factors_2_reduced_n = fac(n/(2**pow_2), h, k_max, i_max)
+		factors_dict = sumDictionaries({2: pow_2}, factors_2_reduced_n)
+
+	elif not (isprime(n) or n==1):
 		sol = soleq(n,h,k_max,i_max)
-		print sol
-		if(sol == False):
+		if not sol:
 			print("No se ha encontrado una factorización")
-			return {n:1}
 		else:
-			factorized = True
-			if isprime(sol[0]) or sol[0]==1:
-				dict_a = {sol[0]: 1}
-			else:
-				dict_a = fac(sol[0],h,k_max, i_max)
+			d_1 = gcd(n,sol[0]-sol[1])
+			dict_a = fac(n/d_1,h,k_max, i_max)
+			dict_b = fac(d_1,h,k_max, i_max)
 
-			if isprime(sol[1]) or sol[1]==1:
-				dict_b = {sol[1]: 1}
-			else:
-				dict_b = fac(sol[1],h,k_max, i_max)
+			factors_dict = sumDictionaries(dict_a,dict_b)
 
-			return sumDictionaries(dict_a,dict_b)
+	return factors_dict
 
-# print soleq(186,30,10,10)
-# print soleq(32056356,30,10,10)
-# print fac(32056356,30,10,10)
+print soleq(186,30,10,10)
+print soleq(32056356,30,10,10)
+print fac(32056356,30,10,10)
 
 	# Elección de la base. Fracciones continuas
 
-def flatten(x):
-	flat = []
-	for l in x:
-		for item in l:
-			flat.append(item)
-	return flat
-
-def getBase(factorized_list):
+def getFactorsBase(factorized_list):
 	base = [-1]
 
 	# Conteo de las apariciones. Añadimos los factores que aparezcan más de una vez
-	factor_list = [f for f in d for d in factorized_list
+	factor_list = [f for d in factorized_list for f in d]
 	count_appearances = dict((i,factor_list.count(i)) for i in factor_list)
 
 	base += [i for i in count_appearances if count_appearances[i]>1]
 
 	#Contamos las apariciones con exponente par. a
-	even_factor = [f for f in d if d[f]%2==0 for d in factorized_list]
-	count_appearances = dict((i,factor_list.count(i)) for i in factor_list)
-	
+	even_factor = [f for d in factorized_list for f in d if d[f]%2==0]
+	count_appearances = dict((i,even_factor.count(i)) for i in even_factor)
+
+	base += [i for i in count_appearances if count_appearances[i]==1]
+	return list(set(base))
+
+def getBase(n, s=0):
+	F = continued_fraction_periodic(0,1,n)
+	if s==0:
+		s=len(F[1])
+
+	L1 = [F[0]]+ F[1][:s]
+	L2=continued_fraction_convergents(L1)
+	L2=list(L2)
+
+	Pbs = [fraction(i)[0] for i in L2]
+	factorized_pbs = [ factorint(abmod(b**2,n)) for b in Pbs]
+	base = getFactorsBase(factorized_pbs)
+	return base
+
+def soleqFC(n,s=0):
+	k_max = 10
+	i_max = 10
+	base = getBase(n,s)
+	BN = bi(n, k_max, i_max, base)
+	alfavec = [vec_alfa(b,base,n) for b in BN]
+	found = False
+	j = 1
+	h= len(base)
+
+	print base
+	print BN
+
+
+	# Número de cadenas a combinar buscando una solución
+	j = 1
+
+	while j <= h+1:
+		# Obtenemos los vectores de longitud j cuyos coefs sean par
+		sumaj = suma(alfavec, j)
+		sumajpar = [i for i in sumaj if parp(i)]
+
+		for alpha in sumajpar:
+			# Tomamos los índices de los elementos que forman alpha
+			eles_alpha = aux(len(BN),j)[sumaj.index(alpha)]
+
+			# Obtenemos la solución a la ecuación cuadrática
+			t_factors = [BN[i] for i in eles_alpha]
+			s_factors = [base[i]**(alpha[i]/2) for i in range(h)]
+			t = prod(t_factors)
+			s = prod(s_factors)
+
+			# Devolvemos la solución no trivial a la ecuación
+			if( (t%n) != (s%n) and (t%n) != (-s)%n):
+				print( str(t) + " y " + str(s) +
+					" es una solución no trivial de la ecuación")
+				return [t,s]
+
+		# Incrementamos el número de vectores a combinar
+		print("Todas las soluciones de long " + str(j)  + " son triviales")
+		j += 1
+
+	print("Todas las soluciones son triviales")
+	return False
+
+def factorizeFC(n):
+	factors_dict = {n: 1}
+
+	if ( n%2 == 0 ):
+		pow_2 = mayorpot(n,2)
+		factors_2_reduced_n = factorizeFC(n/(2**pow_2))
+		factors_dict = sumDictionaries({2: pow_2}, factors_2_reduced_n)
+
+	elif not (isprime(n) or n==1):
+		sol = soleqFC(n)
+		if not sol:
+			print("No se ha encontrado una factorización")
+		else:
+			d_1 = gcd(n,sol[0]-sol[1])
+			dict_a = factorizeFC(n/d_1)
+			dict_b = factorizeFC(d_1)
+
+			factors_dict = sumDictionaries(dict_a,dict_b)
+
+	return factors_dict

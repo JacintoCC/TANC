@@ -383,12 +383,9 @@ def soleq(n, h, k_max, i_max):
 
 			# Devolvemos la solución no trivial a la ecuación
 			if( (t%n) != (s%n) and (t%n) != (-s)%n):
-				print( str(t) + " y " + str(s) +
-					" es una solución no trivial de la ecuación")
 				return [t,s]
 
 		# Incrementamos el número de vectores a combinar
-		print("Todas las soluciones de long " + str(j)  + " son triviales")
 		j += 1
 
 	print("Todas las soluciones son triviales")
@@ -403,12 +400,13 @@ def sumDictionaries(dict_a,dict_b):
 def fac(n, h, k_max, i_max):
 	factors_dict = {n: 1}
 
+	# Sacamos las potencias de 2 de n para facilitar que encuentre los factores
 	if ( n%2 == 0 ):
 		pow_2 = mayorpot(n,2)
 		factors_2_reduced_n = fac(n/(2**pow_2), h, k_max, i_max)
 		factors_dict = sumDictionaries({2: pow_2}, factors_2_reduced_n)
-
 	elif not (isprime(n) or n==1):
+		#
 		sol = soleq(n,h,k_max,i_max)
 		if not sol:
 			print("No se ha encontrado una factorización")
@@ -421,12 +419,7 @@ def fac(n, h, k_max, i_max):
 
 	return factors_dict
 
-print soleq(186,30,10,10)
-print soleq(32056356,30,10,10)
-print fac(32056356,30,10,10)
-
 	# Elección de la base. Fracciones continuas
-
 def getFactorsBase(factorized_list):
 	base = [-1]
 
@@ -443,33 +436,36 @@ def getFactorsBase(factorized_list):
 	base += [i for i in count_appearances if count_appearances[i]==1]
 	return list(set(base))
 
+# Obtención de una base para un n y s. Por defecto, s es aleatorio
 def getBase(n, s=0):
 	F = continued_fraction_periodic(0,1,n)
+
+	# Obtención de s aleatorio
 	if s==0:
-		s=len(F[1])
+		s=randint(1,len(F[1]))
 
 	L1 = [F[0]]+ F[1][:s]
 	L2=continued_fraction_convergents(L1)
 	L2=list(L2)
 
+	# Se obtienen los numeradores en L2
 	Pbs = [fraction(i)[0] for i in L2]
 	factorized_pbs = [ factorint(abmod(b**2,n)) for b in Pbs]
+
+	# Se obtienen los factores que corresponden
 	base = getFactorsBase(factorized_pbs)
 	return base
 
+# Función para obtener una solución ecuación cuadrática no trivial
 def soleqFC(n,s=0):
-	k_max = 10
-	i_max = 10
+	k_max = 20
+	i_max = 20
+
+	# Obtención de la base y BN
 	base = getBase(n,s)
 	BN = bi(n, k_max, i_max, base)
 	alfavec = [vec_alfa(b,base,n) for b in BN]
-	found = False
-	j = 1
-	h= len(base)
-
-	print base
-	print BN
-
+	h = len(base)
 
 	# Número de cadenas a combinar buscando una solución
 	j = 1
@@ -491,17 +487,15 @@ def soleqFC(n,s=0):
 
 			# Devolvemos la solución no trivial a la ecuación
 			if( (t%n) != (s%n) and (t%n) != (-s)%n):
-				print( str(t) + " y " + str(s) +
-					" es una solución no trivial de la ecuación")
 				return [t,s]
 
 		# Incrementamos el número de vectores a combinar
-		print("Todas las soluciones de long " + str(j)  + " son triviales")
 		j += 1
 
 	print("Todas las soluciones son triviales")
 	return False
 
+# Factorización de n usando fracciones continuas. Puede no resolverse si se toma un mal s
 def factorizeFC(n):
 	factors_dict = {n: 1}
 

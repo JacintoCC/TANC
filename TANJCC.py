@@ -6,14 +6,103 @@ import os, sys
 	Archivo con las funciones usadas en la asignatura
 	Teoría Algebráica de Números y Criptografía
 """
-"""
-	Funciones Práctica factor base a partir de la línea 268
-"""
-from sympy import *
+
 from random import randint
+from sympy import *
 from sympy.ntheory import jacobi_symbol
 from itertools import combinations
-from math import floor, sqrt
+from math import floor
+
+"""
+	PRÁCTICA FACTORIZACIÓN EN DOMINIOS EUCLÍDEOS 1
+"""
+
+def norma(alpha):
+	return simplify(alpha*alpha.conjugate())
+
+def traza(alpha):
+	return simplify(alpha+alpha.conjugate())
+
+def getType(rat):
+	rat_type = type(rat)
+
+	if rat_type == type(Rational(1,2)):
+		return Rational
+	elif rat_type == type(Rational(1,1)):
+		return Integer
+	else:
+		return rat_type
+
+def es_entero(alpha):
+	return getType(norma(alpha)) == Integer and getType(traza(alpha)) == Integer
+
+def getE(d):
+	if d%4==1:
+		e_1 = Rational (1,2)
+		e_2 = Rational(1,2)*sqrt(d)
+	else:
+		e_1 = 0
+		e_2 = sqrt(d)
+
+	return e_1+e_2
+
+def getCoefsOfType(alpha, base, type_coefs):
+	alpha = simplify(alpha)
+	div = simplify(alpha/base)
+
+	if type(div)==Add:
+		div_coefs = div.args
+		for coef in div_coefs:
+			rest = simplify(alpha - coef * base)
+			if getType(coef) == type_coefs and getType(rest) == type_coefs:
+				return [rest, coef]
+	elif getType(div) == type_coefs:
+		return [0,div]
+
+	return False
+
+
+def xy(alpha, d):
+	coefs =  getCoefsOfType(alpha, sqrt(d), Rational)
+
+	if coefs:
+		return coefs
+	else:
+		print "AVISO: alpha no está en Q( sqrt(d) )"
+
+def ab(alpha, d):
+	assert es_entero(alpha), "alpha no es entero"
+
+	e = getE(d)
+	coefs = getCoefsOfType(alpha, e, Integer)
+
+	if coefs:
+		return coefs
+	else:
+		print "AVISO: alpha no está en O"
+
+def divide(alpha, beta):
+	return es_entero(beta/alpha)
+
+def cociente(alpha, beta):
+	return simplify(beta/alpha) if es_entero(beta/alpha) else False
+
+def eqpell(n,d):
+	list_of_solutions = []
+	limit = floor(sqrt(-n/d))
+
+	for y in range(int(limit)+1):
+		x = sqrt(n+d*y**2)
+		if getType(x) == Integer:
+			list_of_solutions.append([x,y])
+			if x > 0:
+				list_of_solutions.append([-x,y])
+			if y > 0:
+				list_of_solutions.append([x,-y])
+			if y > 0 and x > 0:
+				list_of_solutions.append([-x,-y])
+	return list_of_solutions
+
 
 """
 	Prácticas iniciales

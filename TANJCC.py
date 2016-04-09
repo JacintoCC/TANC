@@ -17,12 +17,15 @@ from math import floor
 	PRÁCTICA FACTORIZACIÓN EN DOMINIOS EUCLÍDEOS 1
 """
 
+# Método para obtener la norma de un número en C
 def norma(alpha):
 	return simplify(alpha*alpha.conjugate())
 
+# Método para obtener la traza de un número en C
 def traza(alpha):
 	return simplify(alpha+alpha.conjugate())
 
+# Método auxiliar para obtener el tipo real de un número
 def getType(rat):
 	rat_type = type(rat)
 
@@ -30,12 +33,16 @@ def getType(rat):
 		return Rational
 	elif rat_type == type(Rational(1,1)):
 		return Integer
+	elif rat_type == type(Rational(0,1)):
+		return Integer
 	else:
 		return rat_type
 
+# Método para saber si alpha es un número algebraico
 def es_entero(alpha):
 	return getType(norma(alpha)) == Integer and getType(traza(alpha)) == Integer
 
+# Método para obtener e a partir de d
 def getE(d):
 	if d%4==1:
 		e_1 = Rational (1,2)
@@ -46,11 +53,13 @@ def getE(d):
 
 	return e_1+e_2
 
+# Método auxiliar para obtener los coeficientes
 def getCoefsOfType(alpha, base, type_coefs):
 	alpha = simplify(alpha)
 	div = simplify(alpha/base)
 
 	if type(div)==Add:
+		# Tomamos los sumandos si hay más de uno
 		div_coefs = div.args
 		for coef in div_coefs:
 			rest = simplify(alpha - coef * base)
@@ -61,7 +70,7 @@ def getCoefsOfType(alpha, base, type_coefs):
 
 	return False
 
-
+# Método para obtener los coeficientes en Q(sqrt(d)
 def xy(alpha, d):
 	coefs =  getCoefsOfType(alpha, sqrt(d), Rational)
 
@@ -70,6 +79,7 @@ def xy(alpha, d):
 	else:
 		print "AVISO: alpha no está en Q( sqrt(d) )"
 
+# Método para obtener los coeficientes en O
 def ab(alpha, d):
 	assert es_entero(alpha), "alpha no es entero"
 
@@ -81,12 +91,15 @@ def ab(alpha, d):
 	else:
 		print "AVISO: alpha no está en O"
 
+# Método para determinar si alpha divide a beta
 def divide(alpha, beta):
 	return es_entero(beta/alpha)
 
+# Método para obtener el cociente si alpha divide a beta
 def cociente(alpha, beta):
 	return simplify(beta/alpha) if es_entero(beta/alpha) else False
 
+# Método para obtener soluciones a la ecuación de Pell
 def eqpell(n,d):
 	list_of_solutions = []
 	limit = floor(sqrt(-n/d))
@@ -95,6 +108,7 @@ def eqpell(n,d):
 		x = sqrt(n+d*y**2)
 		if getType(x) == Integer:
 			list_of_solutions.append([x,y])
+			# Añadimos las soluciones asociadas
 			if x > 0:
 				list_of_solutions.append([-x,y])
 			if y > 0:
@@ -103,9 +117,64 @@ def eqpell(n,d):
 				list_of_solutions.append([-x,-y])
 	return list_of_solutions
 
+# Método para obtener los elementos con una norma dada
+def connorma(n,d):
+	list_elements = []
+
+	if d%4 != 1:
+		list_sols = eqpell(n,d)
+		list_elements = [x[0]+x[1]*sqrt(d) for x in list_sols]
+	else:
+		list_sols = eqpell(4*n,d)
+		list_elements_prov = [simplify(Rational(x[0],2)+Rational(x[1],2)*sqrt(d)) for x in list_sols]
+		list_elements = [x for x in list_elements_prov if es_entero(x)]
+
+	return list_elements
+
+# Método para determinar si un elemento es unidad
+def es_unidad(alpha, d):
+	return alpha in connorma(1,d)
+
+
+# Método para determinar si un elemento es irreducible
+def es_irreducible(alpha, d):
+	norm = norma(alpha)
+	if isprime(norm):
+		return alpha in connorma(norm,d)
+	else:
+		sqrt_norm = sqrt(norm)
+		if isprime(sqrt_norm):
+			return not connorma(norm,d)
+		else:
+			return False
+
+# Función para sumar los exponentes de los factores de dos diccionarios
+def sumDictionaries(dict_a,dict_b):
+	return { k: dict_a.get(k, 0) + dict_b.get(k, 0)
+	   for k in set(dict_a) | set(dict_b) if k!=1 }
+
+def factoriza(alpha, d):
+	alpha=simplify(alpha)
+	if es_unidad(alpha,d) or es_irreducible(alpha,d):
+		return {alpha: 1}
+
+	norm = norma(alpha)
+	fact_norm = factorint(norm)
+
+	for p in fact_norm:
+		l_connorma = connorma(p,d)
+
+		if not l_connorma:
+			if divide(p,alpha):
+				return sumDictionaries({p:1}, factoriza(alpha/p,d))
+		else:
+			for alpha_i in l_connorma:
+				if divide(alpha_i,alpha):
+					return sumDictionaries({alpha_i:1}, factoriza(cociente(alpha_i,alpha),d))
+
 
 """
-	Prácticas iniciales
+	Prácticas iniciales ***************************************************
 """
 
 hexa_to_dec_dict = {str(x): x for x in range(0,10)}
@@ -480,10 +549,6 @@ def soleq(n, h, k_max, i_max):
 	print("Todas las soluciones son triviales")
 	return False
 
-# Función para sumar los exponentes de los factores de dos diccionarios
-def sumDictionaries(dict_a,dict_b):
-	return { k: dict_a.get(k, 0) + dict_b.get(k, 0)
-       for k in set(dict_a) | set(dict_b) if k!=1 }
 
 # Función para factorizar n (intentarlo al menos)
 def fac(n, h, k_max, i_max):

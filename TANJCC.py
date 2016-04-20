@@ -2,32 +2,44 @@
 # -*- coding: utf-8 -*-
 import os, sys
 
-"""
+"""t
 	Archivo con las funciones usadas en la asignatura
 	Teoría Algebráica de Números y Criptografía
 """
 
 from random import randint
 from sympy import *
+from sympy import minimal_polynomial
+from sympy.abc import x, y
 from sympy.ntheory import jacobi_symbol
 from itertools import combinations
 from math import floor
 
 """
-	PRÁCTICA FACTORIZACIÓN EN DOMINIOS EUCLÍDEOS 1
+	PRÁCTICA FACTORIZACIÓN EN DOMINIOS EUCLÍDEOS
 """
 
-# Método para obtener la norma de un número en C
-def norma(alpha):
-	return simplify(alpha*alpha.conjugate())
+# Método para obtener la norma de un número algebraico
+def norma(alpha,d):
+	alpha = simplify(alpha)
+	if d < 0:
+		return simplify(alpha*alpha.conjugate())
+	else:
+		polynome = minimal_polynomial(alpha,x)
+		return polynome.coeff(x,0)
 
-# Método para obtener la traza de un número en C
-def traza(alpha):
-	return simplify(alpha+alpha.conjugate())
+# Método para obtener la traza de un número algebraico
+def traza(alpha,d):
+	alpha = simplify(alpha)
+	if d < 0:
+		return simplify(alpha+alpha.conjugate())
+	else:
+		polynome = minimal_polynomial(alpha,x)
+		return -polynome.coeff(x,1)
 
 # Método auxiliar para obtener el tipo real de un número
 def getType(rat):
-	rat_type = type(rat)
+	rat_type = type(simplify(rat))
 
 	if rat_type == type(Rational(1,2)):
 		return Rational
@@ -39,8 +51,8 @@ def getType(rat):
 		return rat_type
 
 # Método para saber si alpha es un número algebraico
-def es_entero(alpha):
-	return getType(norma(alpha)) == Integer and getType(traza(alpha)) == Integer
+def es_entero(alpha,d):
+	return getType(norma(alpha,d)) == Integer and getType(traza(alpha,d)) == Integer
 
 # Método para obtener e a partir de d
 def getE(d):
@@ -53,53 +65,35 @@ def getE(d):
 
 	return e_1+e_2
 
-# Método auxiliar para obtener los coeficientes
-def getCoefsOfType(alpha, base, type_coefs):
-	alpha = simplify(alpha)
-	div = simplify(alpha/base)
-
-	if type(div)==Add:
-		# Tomamos los sumandos si hay más de uno
-		div_coefs = div.args
-		for coef in div_coefs:
-			rest = simplify(alpha - coef * base)
-			if getType(coef) == type_coefs and getType(rest) == type_coefs:
-				return [rest, coef]
-	elif getType(div) == type_coefs:
-		return [0,div]
-
-	return False
-
-# Método para obtener los coeficientes en Q(sqrt(d)
+# Método para obtener los coeficientes en Q(sqrt(d))
 def xy(alpha, d):
-	coefs =  getCoefsOfType(alpha, sqrt(d), Rational)
+	alpha = simplify(alpha)
 
-	if coefs:
-		return coefs
-	else:
-		print "AVISO: alpha no está en Q( sqrt(d) )"
+	x = alpha.coeff(sqrt(d), 0)
+	y = alpha.coeff(sqrt(d), 1)
+
+	return x,y
 
 # Método para obtener los coeficientes en O
 def ab(alpha, d):
 	assert es_entero(alpha), "alpha no es entero"
+	alpha = simplify(alpha)
 
 	e = getE(d)
-	coefs = getCoefsOfType(alpha, e, Integer)
+	a = alpha.coeff(e, 0)
+	b = alpha.coeff(e, 1)
 
-	if coefs:
-		return coefs
-	else:
-		print "AVISO: alpha no está en O"
+	return a,b
 
 # Método para determinar si alpha divide a beta
-def divide(alpha, beta):
-	return es_entero(beta/alpha)
+def divide(alpha, beta, d):
+	return es_entero(beta/alpha, d)
 
 # Método para obtener el cociente si alpha divide a beta
-def cociente(alpha, beta):
-	return simplify(beta/alpha) if es_entero(beta/alpha) else False
+def cociente(alpha, beta,d):
+	return simplify(beta/alpha) if es_entero(beta/alpha,d) else False
 
-# Método para obtener soluciones a la ecuación de Pell
+# Método para obtener soluciones a la ecuación de Pell, d<0
 def eqpell(n,d):
 	list_of_solutions = []
 	limit = floor(sqrt(-n/d))
@@ -117,28 +111,88 @@ def eqpell(n,d):
 				list_of_solutions.append([-x,-y])
 	return list_of_solutions
 
+# Método para determinar si un número está libre de cuadrados.
+def libre_de_cuadrados(d):
+	factor_list = factorint(d)
+
+	for i in factor_list:
+		if factor_list[i] >= 2:
+			return False
+
+	return True
+
+# Método para la resolución de la ecuación de Pell
+def pell(d):
+	F = continued_fraction_periodic (0,1,d)
+	L = [F[0]] + F[1][:-1]
+
+	L2=list(continued_fraction_convergents(L))
+
+	# Se obtienen x0, y0, numerador y denominador del último convergente
+	x0 = fraction(L2[-1])[0]
+	y0 = fraction(L2[-1])[1]
+
+	if len(L)%2 == 0:
+		# Devolvemos x0, y0 si la longitud es es par
+		return x0, y0
+	else:
+		# Devolvemos una solución a partir de x0, y0
+		return x0**2+y0**2*d, 2*x0*y0
+
+
+# Método para resolver la ecuación general de pell con d>0
+def generalpell(d,n):
+	r, s = pell(d)
+
+	limit_sup = int(floor((sqrt(n*(r-1)/(2*d))))) if n > 0 else int(floor(sqrt(-n*(r+1)/(2*d))))
+	limit_inf = 0 if n > 0 else int(ceiling(sqrt(-n/d)))
+
+	solutions = []
+	for y in range(limit_inf, limit_sup+1):
+		x = sqrt(d*y**2+n)
+		if getType(x) == Integer:
+			solutions.append([x,y])
+			solutions.append([-x,y])
+
+	if solutions:
+		return solutions
+	else:
+		print "No hay soluciones a la ecuación de Pell"
+
+
 # Método para obtener los elementos con una norma dada
 def connorma(n,d):
 	list_elements = []
 
 	if d%4 != 1:
-		list_sols = eqpell(n,d)
-		list_elements = [x[0]+x[1]*sqrt(d) for x in list_sols]
+		if d < 0:
+			list_sols = eqpell(n,d)
+			list_elements = [x[0]+x[1]*sqrt(d) for x in list_sols]
+		else:
+			list_sols = generalpell(d,n)
+			list_elements = [x[0]+x[1]*sqrt(d) for x in list_sols]
 	else:
-		list_sols = eqpell(4*n,d)
-		list_elements_prov = [simplify(Rational(x[0],2)+Rational(x[1],2)*sqrt(d)) for x in list_sols]
-		list_elements = [x for x in list_elements_prov if es_entero(x)]
+		if d < 0:
+			list_sols = eqpell(4*n,d)
+			list_elements_prov = [simplify(Rational(x[0],2)+Rational(x[1],2)*sqrt(d)) for x in list_sols]
+			list_elements = [x for x in list_elements_prov if es_entero(x)]
+		else:
+			list_sols = generalpell(4*n,d)
+			list_elements_prov = [simplify(Rational(x[0],2)+Rational(x[1],2)*sqrt(d)) for x in list_sols]
+			list_elements = [x for x in list_elements_prov if es_entero(x)]
 
 	return list_elements
 
-# Método para determinar si un elemento es unidad
+#Método para determinar si un elemento es unidad
 def es_unidad(alpha, d):
-	return alpha in connorma(1,d)
-
+	if d < 0:
+		return alpha in connorma(1,d)
+	else:
+		norma(alpha,d)**2 == 1
 
 # Método para determinar si un elemento es irreducible
 def es_irreducible(alpha, d):
-	norm = norma(alpha)
+	norm = norma(alpha,d)
 	if isprime(norm):
 		return alpha in connorma(norm,d)
 	else:
@@ -158,19 +212,19 @@ def factoriza(alpha, d):
 	if es_unidad(alpha,d) or es_irreducible(alpha,d):
 		return {alpha: 1}
 
-	norm = norma(alpha)
+	norm = norma(alpha,d)
 	fact_norm = factorint(norm)
 
 	for p in fact_norm:
 		l_connorma = connorma(p,d)
 
 		if not l_connorma:
-			if divide(p,alpha):
+			if divide(p,alpha,d):
 				return sumDictionaries({p:1}, factoriza(alpha/p,d))
 		else:
 			for alpha_i in l_connorma:
-				if divide(alpha_i,alpha):
-					return sumDictionaries({alpha_i:1}, factoriza(cociente(alpha_i,alpha),d))
+				if divide(alpha_i,alpha,d):
+					return sumDictionaries({alpha_i:1}, factoriza(cociente(alpha_i,alpha,d),d))
 
 
 """

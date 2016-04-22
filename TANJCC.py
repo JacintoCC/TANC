@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import os, sys
 
-"""t
+"""
 	Archivo con las funciones usadas en la asignatura
 	Teoría Algebráica de Números y Criptografía
 """
@@ -22,7 +22,7 @@ from math import floor
 # Método para obtener la norma de un número algebraico
 def norma(alpha,d):
 	alpha = simplify(alpha)
-	if d < 0:
+	if d < 0 or alpha.coeff(sqrt(d),1)==0:
 		return simplify(alpha*alpha.conjugate())
 	else:
 		polynome = minimal_polynomial(alpha,x)
@@ -52,7 +52,8 @@ def getType(rat):
 
 # Método para saber si alpha es un número algebraico
 def es_entero(alpha,d):
-	return getType(norma(alpha,d)) == Integer and getType(traza(alpha,d)) == Integer
+	return (getType(norma(alpha,d)) == Integer and
+			getType(traza(alpha,d)) == Integer)
 
 # Método para obtener e a partir de d
 def getE(d):
@@ -65,6 +66,10 @@ def getE(d):
 
 	return e_1+e_2
 
+alpha = Rational(57815,2)*sqrt(13) + Rational(208455,2)
+alpha_wrong = sqrt(13)*Rational(1,2) + Rational(9,2)
+alpha_1 = Rational(15,2)*sqrt(13) + Rational(55,2)
+
 # Método para obtener los coeficientes en Q(sqrt(d))
 def xy(alpha, d):
 	alpha = simplify(alpha)
@@ -72,26 +77,43 @@ def xy(alpha, d):
 	x = alpha.coeff(sqrt(d), 0)
 	y = alpha.coeff(sqrt(d), 1)
 
-	return x,y
+	if (getType(x) == Rational or getType(x) == Integer and
+		getType(y) == Rational or getType(y) == Integer):
+		return [x,y]
+	else:
+		return False
+#
+# print xy(alpha/alpha_wrong,13)
+# print xy(alpha/alpha_1,13)
+# print xy(alpha/5,13)
 
 # Método para obtener los coeficientes en O
 def ab(alpha, d):
-	assert es_entero(alpha), "alpha no es entero"
+	assert es_entero(alpha,d), "alpha no es entero"
 	alpha = simplify(alpha)
 
 	e = getE(d)
-	a = alpha.coeff(e, 0)
-	b = alpha.coeff(e, 1)
 
-	return a,b
+	alpha_1 = alpha.coeff(sqrt(d),1)
+
+	b = alpha_1/e.coeff(sqrt(d),1)
+	a = simplify(alpha - b*e)
+
+	if getType(a)==Integer and getType(b) == Integer:
+		return [a,b]
+	else:
+		return False
+
 
 # Método para determinar si alpha divide a beta
 def divide(alpha, beta, d):
-	return es_entero(beta/alpha, d)
+	return True if ab(beta/alpha,d) else False
+
 
 # Método para obtener el cociente si alpha divide a beta
 def cociente(alpha, beta,d):
-	return simplify(beta/alpha) if es_entero(beta/alpha,d) else False
+	return simplify(beta/alpha) if divide(alpha, beta, d) else False
+
 
 # Método para obtener soluciones a la ecuación de Pell, d<0
 def eqpell(n,d):
@@ -124,6 +146,7 @@ def libre_de_cuadrados(d):
 # Método para la resolución de la ecuación de Pell
 def pell(d):
 	F = continued_fraction_periodic (0,1,d)
+
 	L = [F[0]] + F[1][:-1]
 
 	L2=list(continued_fraction_convergents(L))
@@ -154,11 +177,10 @@ def generalpell(d,n):
 			solutions.append([x,y])
 			solutions.append([-x,y])
 
-	if solutions:
-		return solutions
-	else:
+	if not solutions:
 		print "No hay soluciones a la ecuación de Pell"
 
+	return solutions
 
 # Método para obtener los elementos con una norma dada
 def connorma(n,d):
@@ -175,11 +197,11 @@ def connorma(n,d):
 		if d < 0:
 			list_sols = eqpell(4*n,d)
 			list_elements_prov = [simplify(Rational(x[0],2)+Rational(x[1],2)*sqrt(d)) for x in list_sols]
-			list_elements = [x for x in list_elements_prov if es_entero(x)]
+			list_elements = [x for x in list_elements_prov if es_entero(x,d)]
 		else:
-			list_sols = generalpell(4*n,d)
+			list_sols = generalpell(d,4*n)
 			list_elements_prov = [simplify(Rational(x[0],2)+Rational(x[1],2)*sqrt(d)) for x in list_sols]
-			list_elements = [x for x in list_elements_prov if es_entero(x)]
+			list_elements = [x for x in list_elements_prov if es_entero(x,d)]
 
 	return list_elements
 
@@ -188,17 +210,17 @@ def es_unidad(alpha, d):
 	if d < 0:
 		return alpha in connorma(1,d)
 	else:
-		norma(alpha,d)**2 == 1
+		return norma(alpha,d)**2 == 1
 
 # Método para determinar si un elemento es irreducible
 def es_irreducible(alpha, d):
 	norm = norma(alpha,d)
-	if isprime(norm):
+	if isprime(abs(norm)):
 		return alpha in connorma(norm,d)
 	else:
-		sqrt_norm = sqrt(norm)
-		if isprime(sqrt_norm):
-			return not connorma(norm,d)
+		sqrt_norm = sqrt(abs(norm))
+		if getType(sqrt_norm)==Integer and isprime(sqrt_norm):
+			return not connorma(sqrt_norm,d)
 		else:
 			return False
 
@@ -209,24 +231,41 @@ def sumDictionaries(dict_a,dict_b):
 
 def factoriza(alpha, d):
 	alpha=simplify(alpha)
+	print "Estamos factorizando", alpha
 	if es_unidad(alpha,d) or es_irreducible(alpha,d):
 		return {alpha: 1}
 
 	norm = norma(alpha,d)
 	fact_norm = factorint(norm)
+	fact_list = [p for p in fact_norm if p>1]
 
 	for p in fact_norm:
-		l_connorma = connorma(p,d)
+		if abs(p)>1:
+			fact_list.append(-p)
 
+	print fact_list
+	for p in fact_list:
+		l_connorma = connorma(p,d)
+		# print "Candidatos", l_connorma
 		if not l_connorma:
 			if divide(p,alpha,d):
-				return sumDictionaries({p:1}, factoriza(alpha/p,d))
+				return sumDictionaries({p:1}, factoriza(cociente(p,alpha,d),d))
 		else:
 			for alpha_i in l_connorma:
+				print alpha_i
 				if divide(alpha_i,alpha,d):
-					return sumDictionaries({alpha_i:1}, factoriza(cociente(alpha_i,alpha,d),d))
+					return sumDictionaries({alpha_i:1},
+							factoriza(cociente(alpha_i,alpha,d),d))
 
+# print factoriza(-51 + 5*sqrt(6),6)
+# print factoriza(Rational(57815,2)*sqrt(13) + Rational(208455,2), 13)
 
+alpha_1B = -1 + 2*sqrt(-3)
+alpha_2B = 2 + sqrt(-3)
+alpha_3B = Rational(5,2) + sqrt(-3)*Rational(1,2)
+alpha_B = simplify(alpha_1B * alpha_2B * alpha_3B)
+
+factores_alpha_B = factoriza(alpha_B,-3)
 """
 	Prácticas iniciales ***************************************************
 """

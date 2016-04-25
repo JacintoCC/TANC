@@ -58,7 +58,7 @@ def es_entero(alpha,d):
 # Método para obtener e a partir de d
 def getE(d):
 	if d%4==1:
-		e_1 = Rational (1,2)
+		e_1 = Rational(1,2)
 		e_2 = Rational(1,2)*sqrt(d)
 	else:
 		e_1 = 0
@@ -89,7 +89,6 @@ def xy(alpha, d):
 
 # Método para obtener los coeficientes en O
 def ab(alpha, d):
-	assert es_entero(alpha,d), "alpha no es entero"
 	alpha = simplify(alpha)
 
 	e = getE(d)
@@ -231,7 +230,6 @@ def sumDictionaries(dict_a,dict_b):
 
 def factoriza(alpha, d):
 	alpha=simplify(alpha)
-	print "Estamos factorizando", alpha
 	if es_unidad(alpha,d) or es_irreducible(alpha,d):
 		return {alpha: 1}
 
@@ -239,33 +237,23 @@ def factoriza(alpha, d):
 	fact_norm = factorint(norm)
 	fact_list = [p for p in fact_norm if p>1]
 
-	for p in fact_norm:
-		if abs(p)>1:
-			fact_list.append(-p)
+	if d<0:
+		for p in fact_norm:
+			if abs(p)>1:
+				fact_list.append(-p)
 
-	print fact_list
 	for p in fact_list:
 		l_connorma = connorma(p,d)
-		# print "Candidatos", l_connorma
 		if not l_connorma:
 			if divide(p,alpha,d):
 				return sumDictionaries({p:1}, factoriza(cociente(p,alpha,d),d))
 		else:
 			for alpha_i in l_connorma:
-				print alpha_i
 				if divide(alpha_i,alpha,d):
 					return sumDictionaries({alpha_i:1},
 							factoriza(cociente(alpha_i,alpha,d),d))
 
-# print factoriza(-51 + 5*sqrt(6),6)
-# print factoriza(Rational(57815,2)*sqrt(13) + Rational(208455,2), 13)
 
-alpha_1B = -1 + 2*sqrt(-3)
-alpha_2B = 2 + sqrt(-3)
-alpha_3B = Rational(5,2) + sqrt(-3)*Rational(1,2)
-alpha_B = simplify(alpha_1B * alpha_2B * alpha_3B)
-
-factores_alpha_B = factoriza(alpha_B,-3)
 """
 	Prácticas iniciales ***************************************************
 """

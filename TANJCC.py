@@ -22,18 +22,27 @@ from math import floor
 # Método para obtener la norma de un número algebraico
 def norma(alpha,d):
 	alpha = simplify(alpha)
+
 	if d < 0 or alpha.coeff(sqrt(d),1)==0:
+		# Tomamos la norma como el alpha por su conjugado si d < 0
+		# o alpha está en Z (alpha**2)
 		return simplify(alpha*alpha.conjugate())
 	else:
+		# En caso contrario tomamos el término independiente
+		# de su polinomio mínimo asociado.
 		polynome = minimal_polynomial(alpha,x)
 		return polynome.coeff(x,0)
 
 # Método para obtener la traza de un número algebraico
 def traza(alpha,d):
 	alpha = simplify(alpha)
-	if d < 0:
+	if d < 0 or alpha.coeff(sqrt(d),1)==0:
+		# Tomamos la norma como el alpha por su conjugado si d < 0
+		# o alpha está en Z (2 * alpha)
 		return simplify(alpha+alpha.conjugate())
 	else:
+		# En caso contrario tomamos menos el coeficiente del término
+		# de primer grado su polinomio mínimo asociado.
 		polynome = minimal_polynomial(alpha,x)
 		return -polynome.coeff(x,1)
 
@@ -66,9 +75,6 @@ def getE(d):
 
 	return e_1+e_2
 
-alpha = Rational(57815,2)*sqrt(13) + Rational(208455,2)
-alpha_wrong = sqrt(13)*Rational(1,2) + Rational(9,2)
-alpha_1 = Rational(15,2)*sqrt(13) + Rational(55,2)
 
 # Método para obtener los coeficientes en Q(sqrt(d))
 def xy(alpha, d):
@@ -77,15 +83,12 @@ def xy(alpha, d):
 	x = alpha.coeff(sqrt(d), 0)
 	y = alpha.coeff(sqrt(d), 1)
 
+	# Devolvemos los coeficienes sólo si son racionales (o enteros)
 	if (getType(x) == Rational or getType(x) == Integer and
 		getType(y) == Rational or getType(y) == Integer):
 		return [x,y]
 	else:
 		return False
-#
-# print xy(alpha/alpha_wrong,13)
-# print xy(alpha/alpha_1,13)
-# print xy(alpha/5,13)
 
 # Método para obtener los coeficientes en O
 def ab(alpha, d):
@@ -98,6 +101,7 @@ def ab(alpha, d):
 	b = alpha_1/e.coeff(sqrt(d),1)
 	a = simplify(alpha - b*e)
 
+	# Devolvemos los coeficienes sólo si son enteros
 	if getType(a)==Integer and getType(b) == Integer:
 		return [a,b]
 	else:
@@ -135,12 +139,7 @@ def eqpell(n,d):
 # Método para determinar si un número está libre de cuadrados.
 def libre_de_cuadrados(d):
 	factor_list = factorint(d)
-
-	for i in factor_list:
-		if factor_list[i] >= 2:
-			return False
-
-	return True
+	return max(factor_list.values())==1
 
 # Método para la resolución de la ecuación de Pell
 def pell(d):
@@ -164,8 +163,11 @@ def pell(d):
 
 # Método para resolver la ecuación general de pell con d>0
 def generalpell(d,n):
+	assert libre_de_cuadrados(d), "d no está libre de cuadrados"
+
 	r, s = pell(d)
 
+	# Establecemos los límites inferior y superior en los que buscar.
 	limit_sup = int(floor((sqrt(n*(r-1)/(2*d))))) if n > 0 else int(floor(sqrt(-n*(r+1)/(2*d))))
 	limit_inf = 0 if n > 0 else int(ceiling(sqrt(-n/d)))
 
@@ -181,7 +183,8 @@ def generalpell(d,n):
 
 	return solutions
 
-# Método para obtener los elementos con una norma dada
+# Método para obtener los elementos con una norma dada. Se resuelve la ecuación
+# de Pell según sea d.
 def connorma(n,d):
 	list_elements = []
 
@@ -229,6 +232,8 @@ def sumDictionaries(dict_a,dict_b):
 	   for k in set(dict_a) | set(dict_b) if k!=1 }
 
 def factoriza(alpha, d):
+	assert libre_de_cuadrados(d), "d no está libre de cuadrados"
+
 	alpha=simplify(alpha)
 	if es_unidad(alpha,d) or es_irreducible(alpha,d):
 		return {alpha: 1}
@@ -237,6 +242,8 @@ def factoriza(alpha, d):
 	fact_norm = factorint(norm)
 	fact_list = [p for p in fact_norm if p>1]
 
+	# Añadimos a la lista de posibles valores de la norma los primos negativos
+	# si d<0
 	if d<0:
 		for p in fact_norm:
 			if abs(p)>1:

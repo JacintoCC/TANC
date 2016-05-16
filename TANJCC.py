@@ -13,7 +13,90 @@ from sympy import minimal_polynomial
 from sympy.abc import x, y
 from sympy.ntheory import jacobi_symbol
 from itertools import combinations
-from math import floor
+from math import floor, copysign
+
+"""
+	PRÁCTICA DE FACTORIZACIÓN DE IDEALES
+"""
+def getSorter(element):
+    def sorter(x,y):
+        e_1 = x[element]
+        e_2 = y[element]
+        if e_1==e_2:
+            return 0
+        elif e_1==0:
+            return 1
+        elif e_2==0:
+            return -1
+        else:
+            return int(copysign(1,abs(e_1)-abs(e_2)))
+
+    return sorter
+
+def sortMatrix(matrix,row):
+    row_sorter = getSorter(row)
+    sorted_matrix = sorted(zip(matrix[0],matrix[1]), cmp=row_sorter)
+    new_matrix = [ [column[j] for column in sorted_matrix] for j in range(2)]
+    return new_matrix
+
+def LR(matrix):
+    #Primera fase
+    num_cols = len(matrix[0])
+    matrix = sortMatrix(matrix,0)
+    count_zeros = matrix[0].count(0)
+
+    while( count_zeros != num_cols-1 ):
+        for i in range(1,num_cols-1):
+            quotient = matrix[0][i]/matrix[0][0]
+            matrix[0][i] -= matrix[0][0]*quotient
+            matrix[1][i] -= matrix[1][0]*quotient
+        matrix = sortMatrix(matrix,0)
+        count_zeros = matrix[0].count(0)
+
+    #Segunda fase
+    submatrix = [ [matrix[i][j] for j in range(1,num_cols)] for i in range(2)]
+
+    submatrix = sortMatrix(submatrix,1)
+    count_zeros = submatrix[1].count(0)
+
+    while( count_zeros != num_cols-2 ):
+        for i in range(1,num_cols-2):
+            quotient = submatrix[1][i]/submatrix[1][0]
+            submatrix[1][i] -= submatrix[1][0]*quotient
+
+        submatrix = sortMatrix(submatrix,1)
+        count_zeros = submatrix[1].count(0)
+
+    return [[matrix[0][0]]+submatrix[0],[matrix[1][0]]+submatrix[1]]
+
+# Método para obtener e a partir de d
+def getE(d):
+	if d%4==1:
+		e_1 = Rational(1,2)
+		e_2 = Rational(1,2)*sqrt(d)
+	else:
+		e_1 = 0
+		e_2 = sqrt(d)
+
+	return e_1+e_2
+
+def norma_ideal(ideal, d):
+	e = getE(d)
+	relators = [ab(ideal[0],d), ab(ideal[0]*e,d),
+				ab(ideal[1],d), ab(ideal[1]*e,d)]
+	relators_matrix =  [[relators[i][j] for i in range(len(relators))]
+							for j in range(2)]
+	relators_matrix = LR(relators_matrix)
+
+	return abs(relators_matrix[0][0]*relators_matrix[1][1])
+
+def esO(ideal, d):
+	return norma_ideal(ideal,d) == 1
+
+def pertenece(alpha, ideal, d):
+
+
+
 
 """
 	PRÁCTICA FACTORIZACIÓN EN DOMINIOS EUCLÍDEOS
@@ -168,8 +251,8 @@ def generalpell(d,n):
 	r, s = pell(d)
 
 	# Establecemos los límites inferior y superior en los que buscar.
-	limit_sup = int(floor((sqrt(n*(r-1)/(2*d))))) if n > 0 else int(floor(sqrt(-n*(r+1)/(2*d))))
-	limit_inf = 0 if n > 0 else int(ceiling(sqrt(-n/d)))
+	limit_sup = int(ceiling((sqrt(n*(r-1)/(2*d*1.0))))) if n > 0 else int(floor(sqrt(-n*(r+1)/(2*d))))
+	limit_inf = 0 if n > 0 else int(floor(sqrt(-n/d)))
 
 	solutions = []
 	for y in range(limit_inf, limit_sup+1):
@@ -222,7 +305,7 @@ def es_irreducible(alpha, d):
 	else:
 		sqrt_norm = sqrt(abs(norm))
 		if getType(sqrt_norm)==Integer and isprime(sqrt_norm):
-			return not connorma(sqrt_norm,d)
+			return not (connorma(sqrt_norm,d) + connorma(-sqrt_norm,d))
 		else:
 			return False
 

@@ -29,6 +29,8 @@ def getType(rat):
 		return Integer
 	elif rat_type == type(Rational(0,1)):
 		return Integer
+	elif rat_type == type(Rational(-1,1)):
+		return Integer
 	else:
 		return rat_type
 
@@ -133,7 +135,7 @@ def esO(ideal, d):
 	return norma_ideal(ideal,d) == 1
 
 def pertenece(alpha, ideal, d):
-	if not ab(alpha, d):
+	if not ab(alpha, d) or not ideal:
 		return False
 
 	c1, c2 = ab(alpha, d)
@@ -149,20 +151,29 @@ def pertenece(alpha, ideal, d):
 	return getType(x_1)==Integer and getType(x_2)==Integer
 
 
-def divide(I, J, d):
+def divide_ideal(I, J, d):
 	for gen in J:
 		if not pertenece(gen, I, d):
 			return False
 
 	return True
 
+def getGenerators(matrix, d):
+	e = getE(d)
+	a = simplify(matrix[0][0] + matrix[1][0]*e)
+	b = simplify(matrix[1][1]*e)
+
+	return [a,b]
+
+def simplify_generator_list(gen_list, d):
+	LR_matrix = getRelatorMatrix(gen_list, d)
+
+	return getGenerators(LR_matrix, d)
+
 def productodos(I, J, d):
 	prod_list = [alpha*beta for alpha in I for beta in J]
-	LR_matrix = getRelatorMatrix(prod_list, d)
-	e = getE(d)
-	a = simplify(LR_matrix[0][0] + LR_matrix[1][0]*e)
-	b = simplify(LR_matrix[1][1]*e)
-	return [a,b]
+
+	return simplify_generator_list(prod_list, d)
 
 def producto(factor_list, d):
 	product = factor_list[0]
@@ -184,32 +195,47 @@ def divisores(p,d):
 def es_primo(ideal, d):
 	e = getE(d)
 	norm = norma_ideal(ideal, d)
-	if isprime(norm) :
+	if isprime(norm):
 		return True
+	elif norm==1:
+		return False
 
 	sqrt_norm = sqrt(norm)
-	fp = poly(minimal_polynomial(e, "x"), modulus=p)
-	roots = fp.ground_roots().keys()
+	if getType(sqrt_norm) == Integer:
+		fp = poly(minimal_polynomial(e, "x"), modulus=sqrt_norm)
+		roots = fp.ground_roots().keys()
 
-	if getType(sqrt_norm) == Integer and pertenece(sqrt_norm,ideal,p) and  len(roots)==0:
-		return True
+		if pertenece(sqrt_norm,ideal,sqrt_norm) and  len(roots)==0:
+			return True
 
 	return False
 
 def cociente_ideal(I, p, d):
-	if divide(p, I, d):
-		norm = norma_ideal(p, d)
+	if divide_ideal(p, I, d):
 		if len(p)== 1:
-			return [simplify(alpha/norm) for alpha in I]
+			return [simplify(alpha/p[0]) for alpha in I]
 		else:
-			cociente = []
-			for alpha in I:
-				cociente.append([alpha, simplify(alpha/p)])
+			e = getE(d)
+			norm = norma_ideal(p, d)
+			fp = poly(minimal_polynomial(e, "x"), modulus=norm)
+			roots = fp.ground_roots().keys()
+			if len(roots)==1:
+				roots.append(roots[0])
 
-			return cociente
+			if e-roots[0] in p:
+				p_invert = [norm, e-roots[1]]
+			else:
+				p_invert = [norm, e-roots[0]]
+
+			cociente = productodos(I,p_invert,d)
+			cociente = [simplify(alpha/norm) for alpha in cociente]
+			return simplify_generator_list(cociente,d)
 	else:
 		return False
 
+
+def factoriza_id():
+	return 0
 
 """
 	PRÁCTICA FACTORIZACIÓN EN DOMINIOS EUCLÍDEOS

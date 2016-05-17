@@ -18,6 +18,38 @@ from math import floor, copysign
 """
 	PRÁCTICA DE FACTORIZACIÓN DE IDEALES
 """
+
+# Método auxiliar para obtener el tipo real de un número
+def getType(rat):
+	rat_type = type(simplify(rat))
+
+	if rat_type == type(Rational(1,2)):
+		return Rational
+	elif rat_type == type(Rational(1,1)):
+		return Integer
+	elif rat_type == type(Rational(0,1)):
+		return Integer
+	else:
+		return rat_type
+
+# Método para obtener los coeficientes en O
+def ab(alpha, d):
+	alpha = simplify(alpha)
+
+	e = getE(d)
+
+	alpha_1 = alpha.coeff(sqrt(d),1)
+
+	b = alpha_1/e.coeff(sqrt(d),1)
+	a = simplify(alpha - b*e)
+
+	# Devolvemos los coeficienes sólo si son enteros
+	if getType(a)==Integer and getType(b) == Integer:
+		return [a,b]
+	else:
+		return False
+
+
 def getSorter(element):
     def sorter(x,y):
         e_1 = x[element]
@@ -47,7 +79,7 @@ def LR(matrix):
 
     while( count_zeros != num_cols-1 ):
         for i in range(1,num_cols-1):
-            quotient = matrix[0][i]/matrix[0][0]
+            quotient = int(matrix[0][i]/matrix[0][0])
             matrix[0][i] -= matrix[0][0]*quotient
             matrix[1][i] -= matrix[1][0]*quotient
         matrix = sortMatrix(matrix,0)
@@ -61,7 +93,7 @@ def LR(matrix):
 
     while( count_zeros != num_cols-2 ):
         for i in range(1,num_cols-2):
-            quotient = submatrix[1][i]/submatrix[1][0]
+            quotient = int(submatrix[1][i]/submatrix[1][0])
             submatrix[1][i] -= submatrix[1][0]*quotient
 
         submatrix = sortMatrix(submatrix,1)
@@ -80,13 +112,20 @@ def getE(d):
 
 	return e_1+e_2
 
-def norma_ideal(ideal, d):
+def getRelatorMatrix(ideal, d):
 	e = getE(d)
-	relators = [ab(ideal[0],d), ab(ideal[0]*e,d),
-				ab(ideal[1],d), ab(ideal[1]*e,d)]
+	relators = []
+
+	for gen in ideal:
+		relators += [ab(gen,d), ab(gen*e,d)]
+
 	relators_matrix =  [[relators[i][j] for i in range(len(relators))]
 							for j in range(2)]
-	relators_matrix = LR(relators_matrix)
+
+	return LR(relators_matrix)
+
+def norma_ideal(ideal, d):
+	relators_matrix = getRelatorMatrix(ideal,d)
 
 	return abs(relators_matrix[0][0]*relators_matrix[1][1])
 
@@ -94,8 +133,82 @@ def esO(ideal, d):
 	return norma_ideal(ideal,d) == 1
 
 def pertenece(alpha, ideal, d):
+	if not ab(alpha, d):
+		return False
+
+	c1, c2 = ab(alpha, d)
+	matrix = getRelatorMatrix(ideal, d)
+
+	a = matrix[0][0]
+	b = matrix[1][0]
+	c = matrix[1][1]
+
+	x_1 = simplify(c1/a)
+	x_2 = simplify((c2-b*x_1)/c)
+
+	return getType(x_1)==Integer and getType(x_2)==Integer
 
 
+def divide(I, J, d):
+	for gen in J:
+		if not pertenece(gen, I, d):
+			return False
+
+	return True
+
+def productodos(I, J, d):
+	prod_list = [alpha*beta for alpha in I for beta in J]
+	LR_matrix = getRelatorMatrix(prod_list, d)
+	e = getE(d)
+	a = simplify(LR_matrix[0][0] + LR_matrix[1][0]*e)
+	b = simplify(LR_matrix[1][1]*e)
+	return [a,b]
+
+def producto(factor_list, d):
+	product = factor_list[0]
+	for factor in factor_list[1:]:
+		product = productodos(product, factor, d)
+
+	return product
+
+def divisores(p,d):
+	e = getE(d)
+	fp = poly(minimal_polynomial(e, "x"), modulus=p)
+	roots = fp.ground_roots().keys()
+
+	if len(roots) == 0:
+		return [[p]]
+	else:
+		return [[p,e-roots[0]],[p,e-roots[1]]]
+
+def es_primo(ideal, d):
+	e = getE(d)
+	norm = norma_ideal(ideal, d)
+	if isprime(norm) :
+		return True
+
+	sqrt_norm = sqrt(norm)
+	fp = poly(minimal_polynomial(e, "x"), modulus=p)
+	roots = fp.ground_roots().keys()
+
+	if getType(sqrt_norm) == Integer and pertenece(sqrt_norm,ideal,p) and  len(roots)==0:
+		return True
+
+	return False
+
+def cociente_ideal(I, p, d):
+	if divide(p, I, d):
+		norm = norma_ideal(p, d)
+		if len(p)== 1:
+			return [simplify(alpha/norm) for alpha in I]
+		else:
+			cociente = []
+			for alpha in I:
+				cociente.append([alpha, simplify(alpha/p)])
+
+			return cociente
+	else:
+		return False
 
 
 """
@@ -129,19 +242,6 @@ def traza(alpha,d):
 		polynome = minimal_polynomial(alpha,x)
 		return -polynome.coeff(x,1)
 
-# Método auxiliar para obtener el tipo real de un número
-def getType(rat):
-	rat_type = type(simplify(rat))
-
-	if rat_type == type(Rational(1,2)):
-		return Rational
-	elif rat_type == type(Rational(1,1)):
-		return Integer
-	elif rat_type == type(Rational(0,1)):
-		return Integer
-	else:
-		return rat_type
-
 # Método para saber si alpha es un número algebraico
 def es_entero(alpha,d):
 	return (getType(norma(alpha,d)) == Integer and
@@ -170,23 +270,6 @@ def xy(alpha, d):
 	if (getType(x) == Rational or getType(x) == Integer and
 		getType(y) == Rational or getType(y) == Integer):
 		return [x,y]
-	else:
-		return False
-
-# Método para obtener los coeficientes en O
-def ab(alpha, d):
-	alpha = simplify(alpha)
-
-	e = getE(d)
-
-	alpha_1 = alpha.coeff(sqrt(d),1)
-
-	b = alpha_1/e.coeff(sqrt(d),1)
-	a = simplify(alpha - b*e)
-
-	# Devolvemos los coeficienes sólo si son enteros
-	if getType(a)==Integer and getType(b) == Integer:
-		return [a,b]
 	else:
 		return False
 

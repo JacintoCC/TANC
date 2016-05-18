@@ -34,6 +34,10 @@ def getType(rat):
 	else:
 		return rat_type
 
+# Función para sumar los exponentes de los factores de dos diccionarios
+def sumDictionaries(dict_a,dict_b):
+	return { k: dict_a.get(k, 0) + dict_b.get(k, 0) for k in set(dict_a) | set(dict_b) if k!=1 }
+
 # Método para obtener los coeficientes en O
 def ab(alpha, d):
 	alpha = simplify(alpha)
@@ -158,6 +162,9 @@ def divide_ideal(I, J, d):
 
 	return True
 
+def equals_id(I,J,d):
+	return divide_ideal(I,J,d) and divide_ideal(J,I,d)
+
 def getGenerators(matrix, d):
 	e = getE(d)
 	a = simplify(matrix[0][0] + matrix[1][0]*e)
@@ -171,7 +178,7 @@ def simplify_generator_list(gen_list, d):
 	return getGenerators(LR_matrix, d)
 
 def productodos(I, J, d):
-	prod_list = [alpha*beta for alpha in I for beta in J]
+	prod_list = [simplify(alpha*beta) for alpha in I for beta in J]
 
 	return simplify_generator_list(prod_list, d)
 
@@ -188,16 +195,17 @@ def divisores(p,d):
 	roots = fp.ground_roots().keys()
 
 	if len(roots) == 0:
-		return [[p]]
+		return [simplify_generator_list([p],d)]
 	else:
-		return [[p,e-roots[0]],[p,e-roots[1]]]
+		return [simplify_generator_list([p,e-roots[0]],d),
+			simplify_generator_list([p,e-roots[1]],d)]
 
 def es_primo(ideal, d):
 	e = getE(d)
 	norm = norma_ideal(ideal, d)
 	if isprime(norm):
 		return True
-	elif norm==1:
+	elif esO(ideal,d)==1:
 		return False
 
 	sqrt_norm = sqrt(norm)
@@ -205,37 +213,74 @@ def es_primo(ideal, d):
 		fp = poly(minimal_polynomial(e, "x"), modulus=sqrt_norm)
 		roots = fp.ground_roots().keys()
 
-		if pertenece(sqrt_norm,ideal,sqrt_norm) and  len(roots)==0:
+		if pertenece(sqrt_norm,ideal,d) and  len(roots)==0:
 			return True
 
 	return False
 
+
+def simplify_prime(ideal,d):
+	assert es_primo(ideal,d), "El ideal debe ser primo"
+
+	e = getE(d)
+	norm = norma_ideal(ideal, d)
+	sqrt_norm = sqrt(norm)
+
+	if getType(sqrt_norm) == Integer:
+		return [norm]
+	else:
+		divisors = divisores(norm,d)
+		if equals_id(ideal,divisors[0],d):
+			return divisors[0]
+		elif equals_id(ideal,divisors[1],d):
+			return divisors[1]
+
 def cociente_ideal(I, p, d):
 	if divide_ideal(p, I, d):
 		if len(p)== 1:
-			return [simplify(alpha/p[0]) for alpha in I]
+			return simplify_generator_list([simplify(alpha/p[0]) for alpha in I],d)
 		else:
 			e = getE(d)
+			p = simplify_prime(p, d)
 			norm = norma_ideal(p, d)
-			fp = poly(minimal_polynomial(e, "x"), modulus=norm)
-			roots = fp.ground_roots().keys()
-			if len(roots)==1:
-				roots.append(roots[0])
 
-			if e-roots[0] in p:
-				p_invert = [norm, e-roots[1]]
+			div = divisores(norm,d)
+			if equals_id(p,div[0],d):
+				p_invert = div[1]
+			elif equals_id(p,div[1],d):
+				p_invert = div[0]
 			else:
-				p_invert = [norm, e-roots[0]]
+				return "No se ha"
 
 			cociente = productodos(I,p_invert,d)
+			print cociente
 			cociente = [simplify(alpha/norm) for alpha in cociente]
+			print cociente
 			return simplify_generator_list(cociente,d)
 	else:
 		return False
 
+def factoriza_id(ideal, d):
+	ideal = simplify_generator_list(ideal, d)
 
-def factoriza_id():
-	return 0
+	if esO(ideal,d):
+		return {tuple(1,getE(d)): 1}
+
+	if es_primo(ideal,d):
+		return {tuple(simplify_prime(ideal,d)): 1}
+
+	# Cálculo de la norma de I en Z
+	norm = norma_ideal(ideal,d)
+	fact_norm = factorint(norm).keys()
+	# Tomamos el primer primo y los ideales primos
+	p_1 = fact_norm[0]
+	simplify_generator_list(ideal,d)
+	L = divisores(p_1, d)
+
+	for p in L:
+		possible_quotient = cociente_ideal(ideal,p,d)
+		if possible_quotient:
+			return sumDictionaries({tuple(p):1}, factoriza_id(possible_quotient,d))
 
 """
 	PRÁCTICA FACTORIZACIÓN EN DOMINIOS EUCLÍDEOS
@@ -417,11 +462,6 @@ def es_irreducible(alpha, d):
 			return not (connorma(sqrt_norm,d) + connorma(-sqrt_norm,d))
 		else:
 			return False
-
-# Función para sumar los exponentes de los factores de dos diccionarios
-def sumDictionaries(dict_a,dict_b):
-	return { k: dict_a.get(k, 0) + dict_b.get(k, 0)
-	   for k in set(dict_a) | set(dict_b) if k!=1 }
 
 def factoriza(alpha, d):
 	assert libre_de_cuadrados(d), "d no está libre de cuadrados"

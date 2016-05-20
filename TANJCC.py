@@ -38,23 +38,67 @@ def getType(rat):
 def sumDictionaries(dict_a,dict_b):
 	return { k: dict_a.get(k, 0) + dict_b.get(k, 0) for k in set(dict_a) | set(dict_b) if k!=1 }
 
+# Método para obtener la norma de un número algebraico
+def norma(alpha,d):
+	alpha = simplify(alpha)
+
+	if d < 0 or alpha.coeff(sqrt(d),1)==0:
+		# Tomamos la norma como el alpha por su conjugado si d < 0
+		# o alpha está en Z (alpha**2)
+		return simplify(alpha*alpha.conjugate())
+	else:
+		# En caso contrario tomamos el término independiente
+		# de su polinomio mínimo asociado.
+		polynome = minimal_polynomial(alpha,x)
+		return polynome.coeff(x,0)
+
+# Método para obtener la traza de un número algebraico
+def traza(alpha,d):
+	alpha = simplify(alpha)
+	if d < 0 or alpha.coeff(sqrt(d),1)==0:
+		# Tomamos la norma como el alpha por su conjugado si d < 0
+		# o alpha está en Z (2 * alpha)
+		return simplify(alpha+alpha.conjugate())
+	else:
+		# En caso contrario tomamos menos el coeficiente del término
+		# de primer grado su polinomio mínimo asociado.
+		polynome = minimal_polynomial(alpha,x)
+		return -polynome.coeff(x,1)
+
+# Método para obtener e a partir de d
+def getE(d):
+	if d%4==1:
+		e_1 = Rational(1,2)
+		e_2 = Rational(1,2)*sqrt(d)
+	else:
+		e_1 = 0
+		e_2 = sqrt(d)
+
+	return e_1+e_2
+
+# Método para saber si alpha es un número algebraico
+def es_entero(alpha,d):
+	return (getType(norma(alpha,d)) == Integer and
+			getType(traza(alpha,d)) == Integer)
+
 # Método para obtener los coeficientes en O
 def ab(alpha, d):
 	alpha = simplify(alpha)
 
-	e = getE(d)
+	if es_entero(alpha, d):
+		e = getE(d)
+		alpha_1 = alpha.coeff(sqrt(d),1)
 
-	alpha_1 = alpha.coeff(sqrt(d),1)
+		b = int(alpha_1/e.coeff(sqrt(d),1))
+		a = simplify(alpha - b*e)
 
-	b = alpha_1/e.coeff(sqrt(d),1)
-	a = simplify(alpha - b*e)
-
-	# Devolvemos los coeficienes sólo si son enteros
-	if getType(a)==Integer and getType(b) == Integer:
-		return [a,b]
+		# Devolvemos los coeficienes sólo si son enteros
+		if getType(a)==Integer and getType(b) == Integer:
+			return [a,b]
+		else:
+			return False
 	else:
 		return False
-
 
 def getSorter(element):
     def sorter(x,y):
@@ -107,27 +151,15 @@ def LR(matrix):
 
     return [[matrix[0][0]]+submatrix[0],[matrix[1][0]]+submatrix[1]]
 
-# Método para obtener e a partir de d
-def getE(d):
-	if d%4==1:
-		e_1 = Rational(1,2)
-		e_2 = Rational(1,2)*sqrt(d)
-	else:
-		e_1 = 0
-		e_2 = sqrt(d)
-
-	return e_1+e_2
 
 def getRelatorMatrix(ideal, d):
 	e = getE(d)
 	relators = []
-
 	for gen in ideal:
-		relators += [ab(gen,d), ab(gen*e,d)]
+		relators += [ab(gen,d), ab(simplify(gen*e),d)]
 
 	relators_matrix =  [[relators[i][j] for i in range(len(relators))]
 							for j in range(2)]
-
 	return LR(relators_matrix)
 
 def norma_ideal(ideal, d):
@@ -179,7 +211,6 @@ def simplify_generator_list(gen_list, d):
 
 def productodos(I, J, d):
 	prod_list = [simplify(alpha*beta) for alpha in I for beta in J]
-
 	return simplify_generator_list(prod_list, d)
 
 def producto(factor_list, d):
@@ -192,11 +223,16 @@ def producto(factor_list, d):
 def divisores(p,d):
 	e = getE(d)
 	fp = poly(minimal_polynomial(e, "x"), modulus=p)
+	# print "E", e
+	# print "P", p
+	# print "Fp", fp
 	roots = fp.ground_roots().keys()
 
 	if len(roots) == 0:
 		return [simplify_generator_list([p],d)]
 	else:
+		if len(roots)==1:
+			roots.append(roots[0])
 		return [simplify_generator_list([p,e-roots[0]],d),
 			simplify_generator_list([p,e-roots[1]],d)]
 
@@ -209,8 +245,10 @@ def es_primo(ideal, d):
 		return False
 
 	sqrt_norm = sqrt(norm)
-	if getType(sqrt_norm) == Integer:
+
+	if getType(sqrt_norm) == Integer and isprime(sqrt_norm):
 		fp = poly(minimal_polynomial(e, "x"), modulus=sqrt_norm)
+
 		roots = fp.ground_roots().keys()
 
 		if pertenece(sqrt_norm,ideal,d) and  len(roots)==0:
@@ -234,15 +272,22 @@ def simplify_prime(ideal,d):
 			return divisors[0]
 		elif equals_id(ideal,divisors[1],d):
 			return divisors[1]
+		else:
+			return "Error en simplify_prime"
 
 def cociente_ideal(I, p, d):
 	if divide_ideal(p, I, d):
-		if len(p)== 1:
-			return simplify_generator_list([simplify(alpha/p[0]) for alpha in I],d)
+		norm = norma_ideal(p, d)
+		sqrt_norm = sqrt(norm)
+		if getType(sqrt_norm)==Integer:
+			return simplify_generator_list([alpha/sqrt_norm for alpha in I],d)
 		else:
 			e = getE(d)
-			p = simplify_prime(p, d)
 			norm = norma_ideal(p, d)
+
+			print "E",e
+			print p
+			print "norma", norm
 
 			div = divisores(norm,d)
 			if equals_id(p,div[0],d):
@@ -250,12 +295,10 @@ def cociente_ideal(I, p, d):
 			elif equals_id(p,div[1],d):
 				p_invert = div[0]
 			else:
-				return "No se ha"
+				return "Error en cociente_ideal"
 
 			cociente = productodos(I,p_invert,d)
-			print cociente
 			cociente = [simplify(alpha/norm) for alpha in cociente]
-			print cociente
 			return simplify_generator_list(cociente,d)
 	else:
 		return False
@@ -278,56 +321,16 @@ def factoriza_id(ideal, d):
 	L = divisores(p_1, d)
 
 	for p in L:
+		print "Factorizando ideal:", ideal
+		print "Probando con \t", p, "de norma", norma_ideal(p,d)
 		possible_quotient = cociente_ideal(ideal,p,d)
 		if possible_quotient:
 			return sumDictionaries({tuple(p):1}, factoriza_id(possible_quotient,d))
 
+
 """
 	PRÁCTICA FACTORIZACIÓN EN DOMINIOS EUCLÍDEOS
 """
-
-# Método para obtener la norma de un número algebraico
-def norma(alpha,d):
-	alpha = simplify(alpha)
-
-	if d < 0 or alpha.coeff(sqrt(d),1)==0:
-		# Tomamos la norma como el alpha por su conjugado si d < 0
-		# o alpha está en Z (alpha**2)
-		return simplify(alpha*alpha.conjugate())
-	else:
-		# En caso contrario tomamos el término independiente
-		# de su polinomio mínimo asociado.
-		polynome = minimal_polynomial(alpha,x)
-		return polynome.coeff(x,0)
-
-# Método para obtener la traza de un número algebraico
-def traza(alpha,d):
-	alpha = simplify(alpha)
-	if d < 0 or alpha.coeff(sqrt(d),1)==0:
-		# Tomamos la norma como el alpha por su conjugado si d < 0
-		# o alpha está en Z (2 * alpha)
-		return simplify(alpha+alpha.conjugate())
-	else:
-		# En caso contrario tomamos menos el coeficiente del término
-		# de primer grado su polinomio mínimo asociado.
-		polynome = minimal_polynomial(alpha,x)
-		return -polynome.coeff(x,1)
-
-# Método para saber si alpha es un número algebraico
-def es_entero(alpha,d):
-	return (getType(norma(alpha,d)) == Integer and
-			getType(traza(alpha,d)) == Integer)
-
-# Método para obtener e a partir de d
-def getE(d):
-	if d%4==1:
-		e_1 = Rational(1,2)
-		e_2 = Rational(1,2)*sqrt(d)
-	else:
-		e_1 = 0
-		e_2 = sqrt(d)
-
-	return e_1+e_2
 
 
 # Método para obtener los coeficientes en Q(sqrt(d))
@@ -354,9 +357,30 @@ def divide(alpha, beta, d):
 def cociente(alpha, beta,d):
 	return simplify(beta/alpha) if divide(alpha, beta, d) else False
 
+# Método para determinar si un número está libre de cuadrados.
+def libre_de_cuadrados(d):
+	factor_list = factorint(d)
+	return max(factor_list.values())==1
+
+# Método para la resolución de la ecuación de Pell
+def pell(d):
+	F = continued_fraction_periodic (0,1,d)
+	L = [F[0]] + F[1][:-1]
+	L2=list(continued_fraction_convergents(L))
+
+	# Se obtienen x0, y0, numerador y denominador del último convergente
+	x0 = fraction(L2[-1])[0]
+	y0 = fraction(L2[-1])[1]
+
+	if len(L)%2 == 0:
+		# Devolvemos x0, y0 si la longitud es es par
+		return [x0, y0]
+	else:
+		# Devolvemos una solución a partir de x0, y0
+		return [x0**2+y0**2*d, 2*x0*y0]
 
 # Método para obtener soluciones a la ecuación de Pell, d<0
-def eqpell(n,d):
+def eqpell_negative(n,d):
 	list_of_solutions = []
 	limit = floor(sqrt(-n/d))
 
@@ -373,37 +397,8 @@ def eqpell(n,d):
 				list_of_solutions.append([-x,-y])
 	return list_of_solutions
 
-# Método para determinar si un número está libre de cuadrados.
-def libre_de_cuadrados(d):
-	factor_list = factorint(d)
-	return max(factor_list.values())==1
-
-# Método para la resolución de la ecuación de Pell
-def pell(d):
-	F = continued_fraction_periodic (0,1,d)
-
-	L = [F[0]] + F[1][:-1]
-
-	L2=list(continued_fraction_convergents(L))
-
-	# Se obtienen x0, y0, numerador y denominador del último convergente
-	x0 = fraction(L2[-1])[0]
-	y0 = fraction(L2[-1])[1]
-
-	if len(L)%2 == 0:
-		# Devolvemos x0, y0 si la longitud es es par
-		return x0, y0
-	else:
-		# Devolvemos una solución a partir de x0, y0
-		return x0**2+y0**2*d, 2*x0*y0
-
-
-# Método para resolver la ecuación general de pell con d>0
-def generalpell(d,n):
-	assert libre_de_cuadrados(d), "d no está libre de cuadrados"
-
+def eqpell_positive(n,d):
 	r, s = pell(d)
-
 	# Establecemos los límites inferior y superior en los que buscar.
 	limit_sup = int(ceiling((sqrt(n*(r-1)/(2*d*1.0))))) if n > 0 else int(floor(sqrt(-n*(r+1)/(2*d))))
 	limit_inf = 0 if n > 0 else int(floor(sqrt(-n/d)))
@@ -420,27 +415,40 @@ def generalpell(d,n):
 
 	return solutions
 
+# Método para resolver la ecuación general de pell con d>0
+def generalpell(d,n):
+	assert libre_de_cuadrados(d), "d no está libre de cuadrados"
+
+	if d < 0:
+		return eqpell_negative(n,d)
+	elif n == 1:
+		solutions = [[-1,0],[1,0]]
+		x,y = pell(d)
+
+		solutions.append([x,y])
+		# Añadimos las soluciones asociadas
+		if x > 0:
+			solutions.append([-x,y])
+		if y > 0:
+			solutions.append([x,-y])
+		if y > 0 and x > 0:
+			solutions.append([-x,-y])
+		return solutions
+	else:
+		return eqpell_positive(n,d)
+
 # Método para obtener los elementos con una norma dada. Se resuelve la ecuación
 # de Pell según sea d.
 def connorma(n,d):
 	list_elements = []
 
 	if d%4 != 1:
-		if d < 0:
-			list_sols = eqpell(n,d)
-			list_elements = [x[0]+x[1]*sqrt(d) for x in list_sols]
-		else:
-			list_sols = generalpell(d,n)
-			list_elements = [x[0]+x[1]*sqrt(d) for x in list_sols]
+		list_sols = generalpell(d,n)
+		list_elements = [x[0]+x[1]*sqrt(d) for x in list_sols]
 	else:
-		if d < 0:
-			list_sols = eqpell(4*n,d)
-			list_elements_prov = [simplify(Rational(x[0],2)+Rational(x[1],2)*sqrt(d)) for x in list_sols]
-			list_elements = [x for x in list_elements_prov if es_entero(x,d)]
-		else:
-			list_sols = generalpell(d,4*n)
-			list_elements_prov = [simplify(Rational(x[0],2)+Rational(x[1],2)*sqrt(d)) for x in list_sols]
-			list_elements = [x for x in list_elements_prov if es_entero(x,d)]
+		list_sols = generalpell(d,4*n)
+		list_elements_prov = [simplify(Rational(x[0],2)+Rational(x[1],2)*sqrt(d)) for x in list_sols]
+		list_elements = [x for x in list_elements_prov if es_entero(x,d)]
 
 	return list_elements
 
@@ -476,7 +484,7 @@ def factoriza(alpha, d):
 
 	# Añadimos a la lista de posibles valores de la norma los primos negativos
 	# si d<0
-	if d<0:
+	if d>0:
 		for p in fact_norm:
 			if abs(p)>1:
 				fact_list.append(-p)
@@ -484,7 +492,7 @@ def factoriza(alpha, d):
 	for p in fact_list:
 		l_connorma = connorma(p,d)
 		if not l_connorma:
-			if divide(p,alpha,d):
+			if divide(p,alpha,d) and p!=alpha:
 				return sumDictionaries({p:1}, factoriza(cociente(p,alpha,d),d))
 		else:
 			for alpha_i in l_connorma:
@@ -492,6 +500,8 @@ def factoriza(alpha, d):
 					return sumDictionaries({alpha_i:1},
 							factoriza(cociente(alpha_i,alpha,d),d))
 
+
+print generalpell(-2,3)
 
 """
 	Prácticas iniciales ***************************************************

@@ -204,7 +204,28 @@ def getGenerators(matrix, d):
 
 	return [a,b]
 
+def simplify_prime(ideal,d):
+	assert es_primo(ideal,d), "El ideal debe ser primo"
+
+	e = getE(d)
+	norm = norma_ideal(ideal, d)
+	sqrt_norm = sqrt(norm)
+
+	if getType(sqrt_norm) == Integer:
+		return [norm]
+	else:
+		divisors = divisores(norm,d)
+		if equals_id(ideal,divisors[0],d):
+			return divisors[0]
+		elif equals_id(ideal,divisors[1],d):
+			return divisors[1]
+		else:
+			return "Error en simplify_prime"
+
 def simplify_generator_list(gen_list, d):
+	if es_primo(gen_list,d):
+		return simplify_prime(gen_list,d)
+
 	LR_matrix = getRelatorMatrix(gen_list, d)
 
 	return getGenerators(LR_matrix, d)
@@ -223,18 +244,14 @@ def producto(factor_list, d):
 def divisores(p,d):
 	e = getE(d)
 	fp = poly(minimal_polynomial(e, "x"), modulus=p)
-	# print "E", e
-	# print "P", p
-	# print "Fp", fp
 	roots = fp.ground_roots().keys()
 
 	if len(roots) == 0:
-		return [simplify_generator_list([p],d)]
+		return [[p]]
 	else:
 		if len(roots)==1:
 			roots.append(roots[0])
-		return [simplify_generator_list([p,e-roots[0]],d),
-			simplify_generator_list([p,e-roots[1]],d)]
+		return [[p,e-roots[0]],[p,e-roots[1]]]
 
 def es_primo(ideal, d):
 	e = getE(d)
@@ -256,25 +273,6 @@ def es_primo(ideal, d):
 
 	return False
 
-
-def simplify_prime(ideal,d):
-	assert es_primo(ideal,d), "El ideal debe ser primo"
-
-	e = getE(d)
-	norm = norma_ideal(ideal, d)
-	sqrt_norm = sqrt(norm)
-
-	if getType(sqrt_norm) == Integer:
-		return [norm]
-	else:
-		divisors = divisores(norm,d)
-		if equals_id(ideal,divisors[0],d):
-			return divisors[0]
-		elif equals_id(ideal,divisors[1],d):
-			return divisors[1]
-		else:
-			return "Error en simplify_prime"
-
 def cociente_ideal(I, p, d):
 	if divide_ideal(p, I, d):
 		norm = norma_ideal(p, d)
@@ -284,10 +282,6 @@ def cociente_ideal(I, p, d):
 		else:
 			e = getE(d)
 			norm = norma_ideal(p, d)
-
-			print "E",e
-			print p
-			print "norma", norm
 
 			div = divisores(norm,d)
 			if equals_id(p,div[0],d):
@@ -321,8 +315,6 @@ def factoriza_id(ideal, d):
 	L = divisores(p_1, d)
 
 	for p in L:
-		print "Factorizando ideal:", ideal
-		print "Probando con \t", p, "de norma", norma_ideal(p,d)
 		possible_quotient = cociente_ideal(ideal,p,d)
 		if possible_quotient:
 			return sumDictionaries({tuple(p):1}, factoriza_id(possible_quotient,d))

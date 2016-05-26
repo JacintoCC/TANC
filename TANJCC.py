@@ -16,7 +16,7 @@ from itertools import combinations
 from math import floor, copysign
 
 """
-	PRÁCTICA DE FACTORIZACIÓN DE IDEALES
+	MÉTODOS AUXILIARES
 """
 
 # Método auxiliar para obtener el tipo real de un número
@@ -37,6 +37,27 @@ def getType(rat):
 # Función para sumar los exponentes de los factores de dos diccionarios
 def sumDictionaries(dict_a,dict_b):
 	return { k: dict_a.get(k, 0) + dict_b.get(k, 0) for k in set(dict_a) | set(dict_b) if k!=1 }
+
+
+"""
+	PRÁCTICA FACTORIZACIÓN EN DOMINIOS EUCLÍDEOS
+"""
+
+# Método para obtener los coeficientes en Q(sqrt(d))
+def xy(alpha, d):
+	alpha = simplify(alpha)
+
+	x = alpha.coeff(sqrt(d), 0)
+	y = alpha.coeff(sqrt(d), 1)
+
+	# Devolvemos los coeficienes sólo si son racionales (o enteros)
+	if (getType(x) == Rational or getType(x) == Integer and
+		getType(y) == Rational or getType(y) == Integer):
+		return [x,y]
+	else:
+		return False
+
+
 
 # Método para obtener la norma de un número algebraico
 def norma(alpha,d):
@@ -83,7 +104,7 @@ def es_entero(alpha,d):
 
 # Método para obtener los coeficientes en O
 def ab(alpha, d):
-	alpha = simplify(alpha)
+	alpha = simplify(expand(alpha))
 
 	if es_entero(alpha, d):
 		e = getE(d)
@@ -91,7 +112,6 @@ def ab(alpha, d):
 
 		b = int(alpha_1/e.coeff(sqrt(d),1))
 		a = simplify(alpha - b*e)
-
 		# Devolvemos los coeficienes sólo si son enteros
 		if getType(a)==Integer and getType(b) == Integer:
 			return [a,b]
@@ -99,246 +119,6 @@ def ab(alpha, d):
 			return False
 	else:
 		return False
-
-def getSorter(element):
-    def sorter(x,y):
-        e_1 = x[element]
-        e_2 = y[element]
-        if e_1==e_2:
-            return 0
-        elif e_1==0:
-            return 1
-        elif e_2==0:
-            return -1
-        else:
-            return int(copysign(1,abs(e_1)-abs(e_2)))
-
-    return sorter
-
-def sortMatrix(matrix,row):
-    row_sorter = getSorter(row)
-    sorted_matrix = sorted(zip(matrix[0],matrix[1]), cmp=row_sorter)
-    new_matrix = [ [column[j] for column in sorted_matrix] for j in range(2)]
-    return new_matrix
-
-def LR(matrix):
-    #Primera fase
-    num_cols = len(matrix[0])
-    matrix = sortMatrix(matrix,0)
-    count_zeros = matrix[0].count(0)
-
-    while( count_zeros != num_cols-1 ):
-        for i in range(1,num_cols-1):
-            quotient = int(matrix[0][i]/matrix[0][0])
-            matrix[0][i] -= matrix[0][0]*quotient
-            matrix[1][i] -= matrix[1][0]*quotient
-        matrix = sortMatrix(matrix,0)
-        count_zeros = matrix[0].count(0)
-
-    #Segunda fase
-    submatrix = [ [matrix[i][j] for j in range(1,num_cols)] for i in range(2)]
-
-    submatrix = sortMatrix(submatrix,1)
-    count_zeros = submatrix[1].count(0)
-
-    while( count_zeros != num_cols-2 ):
-        for i in range(1,num_cols-2):
-            quotient = int(submatrix[1][i]/submatrix[1][0])
-            submatrix[1][i] -= submatrix[1][0]*quotient
-
-        submatrix = sortMatrix(submatrix,1)
-        count_zeros = submatrix[1].count(0)
-
-    return [[matrix[0][0]]+submatrix[0],[matrix[1][0]]+submatrix[1]]
-
-
-def getRelatorMatrix(ideal, d):
-	e = getE(d)
-	relators = []
-	for gen in ideal:
-		relators += [ab(gen,d), ab(simplify(gen*e),d)]
-
-	relators_matrix =  [[relators[i][j] for i in range(len(relators))]
-							for j in range(2)]
-	return LR(relators_matrix)
-
-def norma_ideal(ideal, d):
-	relators_matrix = getRelatorMatrix(ideal,d)
-
-	return abs(relators_matrix[0][0]*relators_matrix[1][1])
-
-def esO(ideal, d):
-	return norma_ideal(ideal,d) == 1
-
-def pertenece(alpha, ideal, d):
-	if not ab(alpha, d) or not ideal:
-		return False
-
-	c1, c2 = ab(alpha, d)
-	matrix = getRelatorMatrix(ideal, d)
-
-	a = matrix[0][0]
-	b = matrix[1][0]
-	c = matrix[1][1]
-
-	x_1 = simplify(c1/a)
-	x_2 = simplify((c2-b*x_1)/c)
-
-	return getType(x_1)==Integer and getType(x_2)==Integer
-
-
-def divide_ideal(I, J, d):
-	for gen in J:
-		if not pertenece(gen, I, d):
-			return False
-
-	return True
-
-def equals_id(I,J,d):
-	return divide_ideal(I,J,d) and divide_ideal(J,I,d)
-
-def getGenerators(matrix, d):
-	e = getE(d)
-	a = simplify(matrix[0][0] + matrix[1][0]*e)
-	b = simplify(matrix[1][1]*e)
-
-	return [a,b]
-
-def simplify_prime(ideal,d):
-	assert es_primo(ideal,d), "El ideal debe ser primo"
-
-	e = getE(d)
-	norm = norma_ideal(ideal, d)
-	sqrt_norm = sqrt(norm)
-
-	if getType(sqrt_norm) == Integer:
-		return [norm]
-	else:
-		divisors = divisores(norm,d)
-		if equals_id(ideal,divisors[0],d):
-			return divisors[0]
-		elif equals_id(ideal,divisors[1],d):
-			return divisors[1]
-		else:
-			return "Error en simplify_prime"
-
-def simplify_generator_list(gen_list, d):
-	if es_primo(gen_list,d):
-		return simplify_prime(gen_list,d)
-
-	LR_matrix = getRelatorMatrix(gen_list, d)
-
-	return getGenerators(LR_matrix, d)
-
-def productodos(I, J, d):
-	prod_list = [simplify(alpha*beta) for alpha in I for beta in J]
-	return simplify_generator_list(prod_list, d)
-
-def producto(factor_list, d):
-	product = factor_list[0]
-	for factor in factor_list[1:]:
-		product = productodos(product, factor, d)
-
-	return product
-
-def divisores(p,d):
-	e = getE(d)
-	fp = poly(minimal_polynomial(e, "x"), modulus=p)
-	roots = fp.ground_roots().keys()
-
-	if len(roots) == 0:
-		return [[p]]
-	else:
-		if len(roots)==1:
-			roots.append(roots[0])
-		return [[p,e-roots[0]],[p,e-roots[1]]]
-
-def es_primo(ideal, d):
-	e = getE(d)
-	norm = norma_ideal(ideal, d)
-	if isprime(norm):
-		return True
-	elif esO(ideal,d)==1:
-		return False
-
-	sqrt_norm = sqrt(norm)
-
-	if getType(sqrt_norm) == Integer and isprime(sqrt_norm):
-		fp = poly(minimal_polynomial(e, "x"), modulus=sqrt_norm)
-
-		roots = fp.ground_roots().keys()
-
-		if pertenece(sqrt_norm,ideal,d) and  len(roots)==0:
-			return True
-
-	return False
-
-def cociente_ideal(I, p, d):
-	if divide_ideal(p, I, d):
-		norm = norma_ideal(p, d)
-		sqrt_norm = sqrt(norm)
-		if getType(sqrt_norm)==Integer:
-			return simplify_generator_list([alpha/sqrt_norm for alpha in I],d)
-		else:
-			e = getE(d)
-			norm = norma_ideal(p, d)
-
-			div = divisores(norm,d)
-			if equals_id(p,div[0],d):
-				p_invert = div[1]
-			elif equals_id(p,div[1],d):
-				p_invert = div[0]
-			else:
-				return "Error en cociente_ideal"
-
-			cociente = productodos(I,p_invert,d)
-			cociente = [simplify(alpha/norm) for alpha in cociente]
-			return simplify_generator_list(cociente,d)
-	else:
-		return False
-
-def factoriza_id(ideal, d):
-	ideal = simplify_generator_list(ideal, d)
-
-	if esO(ideal,d):
-		return {tuple(1,getE(d)): 1}
-
-	if es_primo(ideal,d):
-		return {tuple(simplify_prime(ideal,d)): 1}
-
-	# Cálculo de la norma de I en Z
-	norm = norma_ideal(ideal,d)
-	fact_norm = factorint(norm).keys()
-	# Tomamos el primer primo y los ideales primos
-	p_1 = fact_norm[0]
-	simplify_generator_list(ideal,d)
-	L = divisores(p_1, d)
-
-	for p in L:
-		possible_quotient = cociente_ideal(ideal,p,d)
-		if possible_quotient:
-			return sumDictionaries({tuple(p):1}, factoriza_id(possible_quotient,d))
-
-
-"""
-	PRÁCTICA FACTORIZACIÓN EN DOMINIOS EUCLÍDEOS
-"""
-
-
-# Método para obtener los coeficientes en Q(sqrt(d))
-def xy(alpha, d):
-	alpha = simplify(alpha)
-
-	x = alpha.coeff(sqrt(d), 0)
-	y = alpha.coeff(sqrt(d), 1)
-
-	# Devolvemos los coeficienes sólo si son racionales (o enteros)
-	if (getType(x) == Rational or getType(x) == Integer and
-		getType(y) == Rational or getType(y) == Integer):
-		return [x,y]
-	else:
-		return False
-
 
 # Método para determinar si alpha divide a beta
 def divide(alpha, beta, d):
@@ -432,8 +212,12 @@ def generalpell(d,n):
 # Método para obtener los elementos con una norma dada. Se resuelve la ecuación
 # de Pell según sea d.
 def connorma(n,d):
+	assert libre_de_cuadrados(d), "d no está libre de cuadrados"
+
 	list_elements = []
 
+	if d<0 and n<0:
+		return list_elements
 	if d%4 != 1:
 		list_sols = generalpell(d,n)
 		list_elements = [x[0]+x[1]*sqrt(d) for x in list_sols]
@@ -493,7 +277,297 @@ def factoriza(alpha, d):
 							factoriza(cociente(alpha_i,alpha,d),d))
 
 
-print generalpell(-2,3)
+
+"""
+	PRÁCTICA DE FACTORIZACIÓN DE IDEALES
+"""
+
+def getSorter(element):
+    def sorter(x,y):
+        e_1 = x[element]
+        e_2 = y[element]
+        if e_1==e_2:
+            return 0
+        elif e_1==0:
+            return 1
+        elif e_2==0:
+            return -1
+        else:
+            return int(copysign(1,abs(e_1)-abs(e_2)))
+
+    return sorter
+
+def sortMatrix(matrix,row):
+    row_sorter = getSorter(row)
+    sorted_matrix = sorted(zip(matrix[0],matrix[1]), cmp=row_sorter)
+    new_matrix = [ [column[j] for column in sorted_matrix] for j in range(2)]
+    return new_matrix
+
+def LR(matrix):
+    #Primera fase
+    num_cols = len(matrix[0])
+    matrix = sortMatrix(matrix,0)
+    count_zeros = matrix[0].count(0)
+
+    while( count_zeros != num_cols-1 ):
+        for i in range(1,num_cols-1):
+            quotient = int(matrix[0][i]/matrix[0][0])
+            matrix[0][i] -= matrix[0][0]*quotient
+            matrix[1][i] -= matrix[1][0]*quotient
+        matrix = sortMatrix(matrix,0)
+        count_zeros = matrix[0].count(0)
+
+    #Segunda fase
+    submatrix = [ [matrix[i][j] for j in range(1,num_cols)] for i in range(2)]
+
+    submatrix = sortMatrix(submatrix,1)
+    count_zeros = submatrix[1].count(0)
+
+    while( count_zeros != num_cols-2 ):
+        for i in range(1,num_cols-2):
+            quotient = int(submatrix[1][i]/submatrix[1][0])
+            submatrix[1][i] -= submatrix[1][0]*quotient
+
+        submatrix = sortMatrix(submatrix,1)
+        count_zeros = submatrix[1].count(0)
+
+    return [[matrix[0][0]]+submatrix[0],[matrix[1][0]]+submatrix[1]]
+
+
+def getRelatorMatrix(ideal, d):
+	e = getE(d)
+	relators = []
+	for gen in ideal:
+		relators += [ab(gen,d), ab(simplify(gen*e),d)]
+	relators_matrix =  [[relators[i][j] for i in range(len(relators))]
+							for j in range(2)]
+	return LR(relators_matrix)
+
+def norma_ideal(ideal, d):
+	relators_matrix = getRelatorMatrix(ideal,d)
+
+	return abs(relators_matrix[0][0]*relators_matrix[1][1])
+
+def esO(ideal, d):
+	return norma_ideal(ideal,d) == 1
+
+def pertenece(alpha, ideal, d):
+	if not ab(alpha, d) or not ideal:
+		return False
+
+	c1, c2 = ab(alpha, d)
+	matrix = getRelatorMatrix(ideal, d)
+
+	a = matrix[0][0]
+	b = matrix[1][0]
+	c = matrix[1][1]
+
+	x_1 = simplify(c1/a)
+	x_2 = simplify((c2-b*x_1)/c)
+
+	return getType(x_1)==Integer and getType(x_2)==Integer
+
+def es_primo(ideal, d):
+	e = getE(d)
+	norm = norma_ideal(ideal, d)
+	if isprime(norm):
+		return True
+	elif esO(ideal,d)==1:
+		return False
+
+	sqrt_norm = sqrt(norm)
+
+	if getType(sqrt_norm) == Integer and isprime(sqrt_norm):
+		fp = poly(minimal_polynomial(e, "x"), modulus=sqrt_norm)
+
+		roots = fp.ground_roots().keys()
+
+		if pertenece(sqrt_norm,ideal,d) and  len(roots)==0:
+			return True
+
+	return False
+
+def divide_ideal(I, J, d):
+	for gen in J:
+		if not pertenece(gen, I, d):
+			return False
+
+	return True
+
+def equals_id(I,J,d):
+	return divide_ideal(I,J,d) and divide_ideal(J,I,d)
+
+def getGenerators(matrix, d):
+	e = getE(d)
+	a = simplify(matrix[0][0] + matrix[1][0]*e)
+	b = simplify(matrix[1][1]*e)
+
+	return [a,b]
+
+def simplify_prime(ideal,d):
+	assert es_primo(ideal,d), "El ideal debe ser primo"
+
+	e = getE(d)
+	norm = norma_ideal(ideal, d)
+	sqrt_norm = sqrt(norm)
+
+	if getType(sqrt_norm) == Integer:
+		return [norm]
+	else:
+		divisors = divisores(norm,d)
+		if equals_id(ideal,divisors[0],d):
+			return divisors[0]
+		elif equals_id(ideal,divisors[1],d):
+			return divisors[1]
+		else:
+			return "Error en simplify_prime"
+
+def simplify_generator_list(gen_list, d):
+	if es_primo(gen_list,d):
+		return simplify_prime(gen_list,d)
+
+	LR_matrix = getRelatorMatrix(gen_list, d)
+
+	return getGenerators(LR_matrix, d)
+
+def productodos(I, J, d):
+	prod_list = [simplify(alpha*beta) for alpha in I for beta in J]
+	return simplify_generator_list(prod_list, d)
+
+def producto(factor_list, d):
+	product = factor_list[0]
+	for factor in factor_list[1:]:
+		product = productodos(product, factor, d)
+
+	return product
+
+def divisores(p,d):
+	e = getE(d)
+	fp = poly(minimal_polynomial(e, "x"), modulus=p)
+	roots = fp.ground_roots().keys()
+
+	if len(roots) == 0:
+		return [[p]]
+	else:
+		if len(roots)==1:
+			roots.append(roots[0])
+		return [[p,e-roots[0]],[p,e-roots[1]]]
+
+
+
+def cociente_ideal(I, p, d):
+	if divide_ideal(p, I, d):
+		norm = norma_ideal(p, d)
+		sqrt_norm = sqrt(norm)
+		if getType(sqrt_norm)==Integer:
+			return simplify_generator_list([alpha/sqrt_norm for alpha in I],d)
+		else:
+			e = getE(d)
+			norm = norma_ideal(p, d)
+
+			div = divisores(norm,d)
+			if equals_id(p,div[0],d):
+				p_invert = div[1]
+			elif equals_id(p,div[1],d):
+				p_invert = div[0]
+			else:
+				return "Error en cociente_ideal"
+
+			cociente = productodos(I,p_invert,d)
+			cociente = [simplify(alpha/norm) for alpha in cociente]
+			return simplify_generator_list(cociente,d)
+	else:
+		return False
+
+def factoriza_id(ideal, d):
+	ideal = simplify_generator_list(ideal, d)
+
+	if esO(ideal,d):
+		return {tuple(1,getE(d)): 1}
+
+	if es_primo(ideal,d):
+		return {tuple(simplify_prime(ideal,d)): 1}
+
+	# Cálculo de la norma de I en Z
+	norm = norma_ideal(ideal,d)
+	fact_norm = factorint(norm).keys()
+	# Tomamos el primer primo y los ideales primos
+	p_1 = fact_norm[0]
+	simplify_generator_list(ideal,d)
+	L = divisores(p_1, d)
+
+	for p in L:
+		possible_quotient = cociente_ideal(ideal,p,d)
+		if possible_quotient:
+			return sumDictionaries({tuple(p):1}, factoriza_id(possible_quotient,d))
+
+"""
+	PRÁCTICA DE OBTENCIÓN DEL NÚMERO DE CLASE
+"""
+
+def es_principal(ideal, d):
+	norma = norma_ideal(ideal,d)
+	if getType(sqrt(norma))==Integer and isprime(sqrt(norma)) and equals_id(ideal,[norma],d):
+		return True
+	else:
+		elements = connorma(norma, d) + connorma(-norma,d)
+
+		print "Elementos", elements
+		if not elements:
+			return False
+		else:
+			for elem in elements:
+				if pertenece(elem, ideal, d):
+					return True
+
+			return False
+
+def minkowskiConstant(d):
+	t = 1 if d < 0 else 0
+	s = 0 if d < 0 else 2
+	return N((4/pi)**t * factorial(s+2*t)/(s+2*t)**(s+2*t))
+
+def minkowskiBound(d):
+	delta = d if d%4 == 1 else 4*d
+	return minkowskiConstant(d)*sqrt(abs(delta))
+
+def getListPBC(d):
+	L_PBC = []
+	prime = 2
+	mink_bound = minkowskiBound(d)
+
+	while prime <= mink_bound:
+		L_PBC.append(prime)
+		prime = nextprime(prime)
+
+	return L_PBC
+
+def getGeneratorsOfGroup(d):
+	L_PBC = getListPBC(d)
+
+	generators = [divisores(p,d) for p in L_PBC]
+	generators = [i[0] for i in generators if len(i)==2]
+	print generators
+	return [g for g in generators if not es_principal(g,d)]
+
+d = -299
+SG = getGeneratorsOfGroup(d)
+
+print SG
+def orden_ideal(ideal, d):
+    o = 1
+    producto = ideal
+    while not es_principal(producto, d):
+        producto = productodos(ideal, producto, d)
+        o += 1
+
+    return o
+
+
+for ideal in SG:
+	print "Ideal ", ideal
+	print "Orden", orden_ideal(ideal,d)
+
 
 """
 	Prácticas iniciales ***************************************************

@@ -286,14 +286,14 @@ def getSorter(element):
     def sorter(x,y):
         e_1 = x[element]
         e_2 = y[element]
-        if e_1==e_2:
+        if abs(e_1)==abs(e_2):
             return 0
         elif e_1==0:
             return 1
         elif e_2==0:
             return -1
         else:
-            return int(copysign(1,abs(e_1)-abs(e_2)))
+			return int(copysign(1,(abs(e_1)-abs(e_2))/abs(abs(e_1)-abs(e_2))))
 
     return sorter
 
@@ -307,6 +307,7 @@ def LR(matrix):
     #Primera fase
     num_cols = len(matrix[0])
     matrix = sortMatrix(matrix,0)
+
     count_zeros = matrix[0].count(0)
 
     while( count_zeros != num_cols-1 ):
@@ -554,19 +555,22 @@ d = -299
 SG = getGeneratorsOfGroup(d)
 
 print SG
+
 def orden_ideal(ideal, d):
     o = 1
     producto = ideal
     while not es_principal(producto, d):
-        producto = productodos(ideal, producto, d)
-        o += 1
+		print "Ideal"
+		print producto
+		producto = productodos(ideal, producto, d)
+		o += 1
 
     return o
 
 
-for ideal in SG:
-	print "Ideal ", ideal
-	print "Orden", orden_ideal(ideal,d)
+ideal = [11, -Rational(3,2) + sqrt(299)*I*Rational(1,2)]
+print "Ideal ", ideal
+print "Orden", orden_ideal(ideal,d)
 
 
 """

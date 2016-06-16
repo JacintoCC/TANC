@@ -648,43 +648,90 @@ def getDifferentGenClassGroup(d):
     return [SG_simplified, lists_pows_simplified]
 
 
-def getGenericRelation(list_1, list_2, d):
-    order_1 = len(list_1)
-    order_2 = len(list_2)
+def getGenericRelations(lists, d):
+    # Obtención de los generadores
+    SG = [l[0] for l in lists]
+    num_generators = len(SG)
+    names = ["p"+str(g[0]) for g in SG]
 
-    if gcd(order_1,order_2) == 1:
-        return False
-    else:
-        r_primes_1 = [ i for i in range(order_1) if gcd(i,order_1)!=1 ]
-        r_primes_2 = [ i for i in range(order_2) if gcd(i,order_2)!=1 ]
+    # Obtención de los órdenes
+    orders = [len(l) for l in lists]
 
-        for n in range(order_1):
-            for m in range(order_2):
-                if not( n+1 in r_primes_1 or m+1 in r_primes_2):
-                    if es_principal(productodos(list_1[n],list_2[m],d),d):
-                        return [n+1,m+1]
+    # Obtención de las potencias primas con el orden del grupo
+    r_primes = [[j for j in range(o) if gcd(j,o)==1] for o in orders]
 
-        return False
-        
-def classNumber(d):
+    relations = ""
+
+    num_g_cheching = 2
+
+    # Mientras haya más de un generador disponible y no hayamos hecho todas las combinaciones
+    while num_g_cheching <= num_generators:
+        print "COMPROBANDO COMBINACIÓN DE ", num_g_cheching, " GENERADORES"
+        # Realizamos las combinaciones de num_g_cheching elementos
+        combinations_of_ngc = combinations(range(num_generators),
+                                           num_g_cheching)
+
+        for cg in combinations_of_ngc:
+            print "\t Comprobando <", [names[i] for i in cg], ">"
+
+            # Realizamos las combinaciones de las potencias
+            selected_orders = [orders[i] for i in cg]
+            ranges_orders = [range(i) for i in selected_orders]
+            combinations_of_pows = product(*ranges_orders)
+
+            for cp in combinations_of_pows:
+                # Comprobamos que haya alguna potencia primo relativo con su orden
+                in_r_primes = [cp[i]+1 in r_primes[cg[i]] for i in range(num_g_cheching) ]
+
+                # Seleccionamos el generador que quitaremos de la lista
+                possible_subgroup = generatorToQuit(selected_orders, cp)
+
+                # Evitamos repetir los cálculos ya hechos
+                if any(in_r_primes) and possible_subgroup!=None:
+                    continue
+
+                str_relation = [names[cg[i]]+"**"+str(cp[i]+1) for i in range(num_g_cheching)]
+                print "\t\t Probando", str_relation
+
+                factors = [lists[cg[i]][cp[i]] for i in range(num_g_cheching)]
+                prod = producto(factors,d)
+
+                # Si el producto es principal mostramos la relación
+                if es_principal(prod,d):
+                    relations += "\nProducto de "+str([names[cg[i]]+"**"+str(cp[i]+1) for i in range(num_g_cheching)])+ "=[O]"
+                    break
+
+        num_g_cheching += 1
+
+    return relations
+
+def classGroup(d):
     SG, pows = getDifferentGenClassGroup(d)
+    names = ["p"+str(g[0]) for g in SG]
+    orders = [len(l) for l in pows]
     num_generators = len(SG)
 
-    if len(SG) == 1:
-        return len(pows[0])
+    if num_generators == 1:
+        return "C"+str(orders[0])
 
-    print "Comprobando si existen clases con intersección"
+    if gcd(orders)==1:
+        prod = 1
+        for o in orders:
+            prod *= o
+        return "C"+str(prod)
 
-    for i in range(num_generators-1):
-        for j in range(i+1,num_generators):
-            print "\t Comparando <[p", SG[i][0] ,"]>, de orden ", len(pows[i]), "y <[p", SG[j][0], "]>, de orden ",  len(pows[j])
-            relation = getGenericRelation(pows[i], pows[j],d)
-            if relation:
-                print "[", SG[i], "]**", relation[0], " = [", SG[j], "]**", relation[1]
+    print "Comprobando si existen relaciones adicionales"
+    relations = getGenericRelations(pows, d)
+
+    group = ""
+    for o in orders:
+        group += " x C" + str(o)
+
+    return group+relations
 
 
 
-print classNumber(-231)
+print classGroup(-299)
 
 """
     Prácticas iniciales ***************************************************

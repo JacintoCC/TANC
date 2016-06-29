@@ -112,6 +112,7 @@ def ab(alpha, d):
 
         b = int(alpha_1/e.coeff(sqrt(d),1))
         a = simplify(alpha - b*e)
+
         # Devolvemos los coeficienes sólo si son enteros
         if getType(a)==Integer and getType(b) == Integer:
             return [a,b]
@@ -333,6 +334,7 @@ def getRelatorMatrix(ideal, d):
         ideal.append(0)
     for gen in ideal:
         relators += [ab(gen,d), ab(simplify(gen*e),d)]
+
     relators_matrix =  [[relators[i][j] for i in range(len(relators))]
                             for j in range(2)]
     return LR(relators_matrix)
@@ -536,18 +538,20 @@ def getListPBC(d):
 
 def getGeneratorsOfGroup(d):
     L_PBC = getListPBC(d)
-
     generators = [divisores(p,d) for p in L_PBC]
     generators = [i[0] for i in generators if len(i)==2]
     return [g for g in generators if not es_principal(g,d)]
 
 def getListPows(ideal, d):
-    list_pows = [ideal]
+    list_pows = []
     product = ideal
+    i=1
 
     while not es_principal(product,d):
-        product = productodos(ideal, product,d)
+        print "\t ...", i
         list_pows.append(product)
+        product = productodos(ideal, product,d)
+        i += 1
 
     return list_pows
 
@@ -560,7 +564,7 @@ def getListsPows(SG,d):
     for p in SG:
         print "Calculando orden de ", p, "..."
         pow_list = getListPows(p,d)
-        print "\t", p, " tiene orden ", len(pow_list)
+        print "\t", p, " tiene orden ", len(pow_list)+1
         lists_pows.append(pow_list)
 
     return lists_pows
@@ -576,12 +580,17 @@ def getDifferentGenClassGroup(d):
     # Obtención de los generadores
     print "Calculando generadores de ", d
     SG = getGeneratorsOfGroup(d)
+
+    # Quitamos el caso en el que el ideal sea O
+    if not SG:
+        return [False, False]
+
     num_generators = len(SG)
     names = ["p"+str(g[0]) for g in SG]
 
     # Obtención de las listas con las potencias
     lists = getListsPows(SG,d)
-    orders = [len(l) for l in lists]
+    orders = [len(l)+1 for l in lists]
 
     # Obtención de las potencias primas con el orden del grupo
     r_primes = [[j for j in range(o) if gcd(j,o)==1] for o in orders]
@@ -609,7 +618,7 @@ def getDifferentGenClassGroup(d):
 
             # Realizamos las combinaciones de las potencias
             selected_orders = [orders[i] for i in cg]
-            ranges_orders = [range(i) for i in selected_orders]
+            ranges_orders = [range(i-1) for i in selected_orders]
             combinations_of_pows = product(*ranges_orders)
 
             for cp in combinations_of_pows:
@@ -655,7 +664,7 @@ def getGenericRelations(lists, d):
     names = ["p"+str(g[0]) for g in SG]
 
     # Obtención de los órdenes
-    orders = [len(l) for l in lists]
+    orders = [len(l)+1 for l in lists]
 
     # Obtención de las potencias primas con el orden del grupo
     r_primes = [[j for j in range(o) if gcd(j,o)==1] for o in orders]
@@ -676,7 +685,7 @@ def getGenericRelations(lists, d):
 
             # Realizamos las combinaciones de las potencias
             selected_orders = [orders[i] for i in cg]
-            ranges_orders = [range(i) for i in selected_orders]
+            ranges_orders = [range(i-1) for i in selected_orders]
             combinations_of_pows = product(*ranges_orders)
 
             for cp in combinations_of_pows:
@@ -706,9 +715,15 @@ def getGenericRelations(lists, d):
     return relations
 
 def classGroup(d):
+    assert libre_de_cuadrados(d), "d no es libre de cuadrados"
     SG, pows = getDifferentGenClassGroup(d)
+
+    # Comprobamos que el grupo no sea <1>
+    if not SG:
+        return "El grupo es <1>"
+
     names = ["p"+str(g[0]) for g in SG]
-    orders = [len(l) for l in pows]
+    orders = [len(l)+1 for l in pows]
     num_generators = len(SG)
 
     if num_generators == 1:
@@ -723,15 +738,22 @@ def classGroup(d):
     print "Comprobando si existen relaciones adicionales"
     relations = getGenericRelations(pows, d)
 
-    group = ""
-    for o in orders:
-        group += " x C" + str(o)
+    group = "C"+str(orders[0])
+
+    for i in range(1, len(orders)):
+        group += " x C" + str(orders[i])
 
     return group+relations
 
+print classGroup(-231)
+while True:
+    d = randint(-400, -1)
+    if libre_de_cuadrados(d):
+        print classGroup(d)
 
-
-print classGroup(-299)
+    d = randint(2, 200)
+    if libre_de_cuadrados(d):
+        print classGroup(d)
 
 """
     Prácticas iniciales ***************************************************
